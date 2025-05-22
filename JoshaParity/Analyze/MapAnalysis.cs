@@ -7,19 +7,23 @@ using JoshaParser.Utils;
 
 namespace JoshaParity.Analyze;
 
-/// <summary> An analysis object for a mapset </summary>
-public class MapAnalysis(SongInfo mapData)
+/// <summary> An analysis object for a mapset </summary>  
+public class MapAnalysis
 {
-    /// <summary> Mapping of characteristic to Mapping of Rank and Analysis Object </summary>
     private readonly Dictionary<string, Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>> _results =
-        new(StringComparer.OrdinalIgnoreCase);
+        new Dictionary<string, Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, IReadOnlyDictionary<BeatmapDifficultyRank, DifficultyAnalysis>> Results =>
         _results.ToDictionary(kvp => kvp.Key, kvp => (IReadOnlyDictionary<BeatmapDifficultyRank, DifficultyAnalysis>)kvp.Value);
 
-    public SongInfo MapData { get; } = mapData;
+    public SongInfo MapData { get; }
 
-    /// <summary> Adds an analysis result for a specific characteristic and difficulty rank </summary>
+    public MapAnalysis(SongInfo mapData)
+    {
+        if (mapData == null) throw new ArgumentNullException(nameof(mapData));
+        MapData = mapData;
+    }
+
     public bool AddAnalysis(string characteristic, BeatmapDifficultyRank difficultyRank, DifficultyAnalysis analysis)
     {
         if (string.IsNullOrWhiteSpace(characteristic) || analysis == null)
@@ -27,15 +31,14 @@ public class MapAnalysis(SongInfo mapData)
 
         if (!_results.TryGetValue(characteristic, out var difficultyDict))
         {
-            difficultyDict = [];
+            difficultyDict = new Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>();
             _results[characteristic] = difficultyDict;
         }
         difficultyDict[difficultyRank] = analysis;
         return true;
     }
 
-    /// <summary> Retrieves a specific analysis by characteristic and difficulty rank </summary>
-    public DifficultyAnalysis? GetAnalysis(string characteristic, BeatmapDifficultyRank difficultyRank)
+    public DifficultyAnalysis GetAnalysis(string characteristic, BeatmapDifficultyRank difficultyRank)
     {
         if (string.IsNullOrWhiteSpace(characteristic)) return null;
         return _results.TryGetValue(characteristic, out var difficultyDict) && difficultyDict.TryGetValue(difficultyRank, out var analysis)
@@ -43,30 +46,27 @@ public class MapAnalysis(SongInfo mapData)
             : null;
     }
 
-    /// <summary> Retrieves all analysis results for a specific characteristic </summary>
     public IReadOnlyCollection<DifficultyAnalysis> GetAnalysisByCharacteristic(string characteristic)
     {
-        if (string.IsNullOrWhiteSpace(characteristic)) return [];
+        if (string.IsNullOrWhiteSpace(characteristic)) return new List<DifficultyAnalysis>();
         return _results.TryGetValue(characteristic, out var difficultyDict)
-            ? (IReadOnlyCollection<DifficultyAnalysis>)[.. difficultyDict.Values]
-            : [];
+            ? (IReadOnlyCollection<DifficultyAnalysis>)difficultyDict.Values.ToList()
+            : new List<DifficultyAnalysis>();
     }
 
-    /// <summary> Retrieves all analysis results across all characteristics and difficulties </summary>
     public IReadOnlyCollection<DifficultyAnalysis> GetAllAnalyses()
     {
         return _results.Values.SelectMany(difficultyDict => difficultyDict.Values).ToList();
     }
 }
 
-/// <summary> Performs analysis on a mapset </summary>
+/// <summary> Performs analysis on a mapset </summary>  
 public static class MapAnalyser
 {
-    /// <summary> Performs analysis on every difficulty of every characteristic for the mapset </summary>
-    public static async Task<MapAnalysis> AnalyseAsync(SongInfo songData, AudioInfo? audioData = null)
+    public static async Task<MapAnalysis> AnalyseAsync(SongInfo songData, AudioInfo audioData = null)
     {
-        ArgumentNullException.ThrowIfNull(songData);
-        MapAnalysis analysis = new(songData);
+        if (songData == null) throw new ArgumentNullException(nameof(songData));
+        MapAnalysis analysis = new MapAnalysis(songData);
 
         var tasks = songData.DifficultyBeatmaps.Select(async diffInfo =>
         {
@@ -77,7 +77,7 @@ public static class MapAnalyser
             MapObjects objects = MapObjectsFromData(diffInfo.DifficultyData, bpmContext);
             BotState botState = await Task.Run(() => MapProcessor.Run(objects, bpmContext));
 
-            DifficultyAnalysis diffAnalysis = new(diffInfo.DifficultyData, bpmContext, botState);
+            DifficultyAnalysis diffAnalysis = new DifficultyAnalysis(diffInfo.DifficultyData, bpmContext, botState);
             analysis.AddAnalysis(diffInfo.Characteristic, diffInfo.Rank, diffAnalysis);
         });
 
@@ -85,8 +85,7 @@ public static class MapAnalyser
         return analysis;
     }
 
-    /// <summary> Returns a diff analysis of a single map difficulty given json strings for info and a difficulty </summary>
-    public static DifficultyAnalysis AnalyseSingleDifficultyFromJson(string info, string difficulty, AudioInfo? audioData = null)
+    public static DifficultyAnalysis AnalyseSingleDifficultyFromJson(string info, string difficulty, AudioInfo audioData = null)
     {
         if (string.IsNullOrWhiteSpace(info) || string.IsNullOrWhiteSpace(difficulty))
             throw new ArgumentException("Info and difficulty cannot be null or empty.");
@@ -96,10 +95,9 @@ public static class MapAnalyser
         return AnalyseSingleDifficulty(data, songInfo.Song.BPM, songInfo.SongTimeOffset, audioData);
     }
 
-    /// <summary> Analyses a single difficulty given the deserialized song data and difficulty data objects </summary>
-    public static DifficultyAnalysis AnalyseSingleDifficulty(DifficultyData difficultyData, float BPM, float songTimeOffset, AudioInfo? audioData = null)
+    public static DifficultyAnalysis AnalyseSingleDifficulty(DifficultyData difficultyData, float BPM, float songTimeOffset, AudioInfo audioData = null)
     {
-        ArgumentNullException.ThrowIfNull(difficultyData);
+        if (difficultyData == null) throw new ArgumentNullException(nameof(difficultyData));
 
         BPMContext bpmContext = audioData == null
             ? BPMContext.CreateBPMContext(BPM, difficultyData.RawBPMEvents, songTimeOffset)
@@ -111,7 +109,6 @@ public static class MapAnalyser
         return new DifficultyAnalysis(difficultyData, bpmContext, state);
     }
 
-    /// <summary> Setups up DifficultyData in format required by processing </summary>
     public static MapObjects MapObjectsFromData(DifficultyData data, BPMContext bpmContext)
     {
         List<Note> notes = data.Notes.Select(x => { x.MS = bpmContext.ToRealTime(x.B) * 1000; return x; }).ToList();

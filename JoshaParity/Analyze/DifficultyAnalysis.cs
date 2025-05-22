@@ -20,10 +20,14 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     private readonly BotState _state = state;
     private readonly BPMContext _bpmContext = bpmContext;
 
-    // Cache storage for stat computations keyed by stat name + hand result
+    /// <summary> Cache storage for stat computations keyed by stat name + hand result </summary>
     private readonly Dictionary<(string StatName, HandResult Hand), float> _cache = [];
 
-    private List<SwingData> GetSwingData(HandResult hand) => hand switch
+    /// <summary> Gets the associated BPM Context for this difficulty </summary>
+    public BPMContext GetBPMContext() => _bpmContext;
+
+    /// <summary> Returns swing data for a given hand </summary>
+    public List<SwingData> GetSwingData(HandResult hand) => hand switch
     {
         HandResult.Left => _state.GetAllSwings(Hand.Left).ToList(),
         HandResult.Right => _state.GetAllSwings(Hand.Right).ToList(),
@@ -31,6 +35,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         _ => []
     };
 
+    /// <summary> Gets the average NPS across the difficulty </summary>
     public float GetNPS(HandResult hand)
     {
         var key = (nameof(GetNPS), hand);
@@ -51,6 +56,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the total reset counts </summary>
     public int GetResetCount(ResetType type = ResetType.Angle)
     {
         var jointSwings = GetSwingData(HandResult.Both);
@@ -58,6 +64,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return jointSwings.Count(x => x.ResetType == type);
     }
 
+    /// <summary> Gets the average SPS across the difficulty </summary>
     public float GetSPS(HandResult hand = HandResult.Both)
     {
         var key = (nameof(GetSPS), hand);
@@ -87,6 +94,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the average EBPM across the difficulty </summary>
     public float GetAverageEBPM(HandResult hand = HandResult.Both)
     {
         var key = (nameof(GetAverageEBPM), hand);
@@ -107,11 +115,11 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets a vector with the handedness % for both hands </summary>
     public Vector2 GetHandedness()
-    {
-        return new Vector2(GetHandedness(HandResult.Right), GetHandedness(HandResult.Left));
-    }
+    { return new Vector2(GetHandedness(HandResult.Right), GetHandedness(HandResult.Left)); }
 
+    /// <summary> Gets the percentage of swings on a hand </summary>
     public float GetHandedness(HandResult hand = HandResult.Right)
     {
         var key = (nameof(GetHandedness), hand);
@@ -133,6 +141,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the percentage of a type of swing </summary>
     public float GetSwingTypePercent(SwingType type = SwingType.Normal, HandResult hand = HandResult.Both)
     {
         var key = (nameof(GetSwingTypePercent) + type.ToString(), hand);
@@ -153,6 +162,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the percentage of doubles in a difficulty </summary>
     public float GetDoublesPercent()
     {
         var key = (nameof(GetDoublesPercent), HandResult.Both);
@@ -174,6 +184,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the average spacing between notes across a difficulty </summary>
     public float GetAverageSpacing(HandResult hand = HandResult.Right)
     {
         var key = (nameof(GetAverageSpacing), hand);
@@ -193,6 +204,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         return result;
     }
 
+    /// <summary> Gets the average angle change between notes across a difficulty </summary>
     public float GetAverageAngleChange(HandResult hand = HandResult.Right)
     {
         var key = (nameof(GetAverageAngleChange), hand);

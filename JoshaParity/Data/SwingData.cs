@@ -57,7 +57,7 @@ public sealed class SwingData(Hand hand, Parity parity, SwingType swingType, Res
     /// <summary> Returns the first motion frame of this swing </summary>
     public SwingFrame StartFrame => Frames[0];
     /// <summary> Returns the last motion frame of this swing </summary>
-    public SwingFrame EndFrame => Frames[^1];
+    public SwingFrame EndFrame => Frames[Frames.Count-1];
     /// <summary> Is this swing instigating a reset? </summary>
     public bool IsReset => ResetType != ResetType.None;
     /// <summary> Overview of swing information </summary>

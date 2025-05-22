@@ -32,7 +32,7 @@ public class SwingBuffer
         Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
         var buffer = _buffers[hand];
 
-        if (buffer.Count == 0 || IsInGroup(buffer[^1], note))
+        if (buffer.Count == 0 || IsInGroup(buffer[buffer.Count-1], note))
         {
             buffer.Add(note);
             return null;
@@ -62,7 +62,7 @@ public class SwingBuffer
         var buffer = _buffers[hand];
         if (buffer.Count == 0) return null;
 
-        if (!IsInGroup(buffer[^1], nextNote))
+        if (!IsInGroup(buffer[buffer.Count-1], nextNote))
         {
             var finalized = new List<Note>(buffer);
             buffer.Clear();
