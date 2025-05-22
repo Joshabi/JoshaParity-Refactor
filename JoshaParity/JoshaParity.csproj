@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BSMParser\JoshaParser.csproj" />
+    <ProjectReference Include="..\JoshaParser\JoshaParser.csproj" />
   </ItemGroup>
 
 </Project>
