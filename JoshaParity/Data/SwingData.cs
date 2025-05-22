@@ -107,6 +107,43 @@ public class SwingDataBuilder
         return this;
     }
 
+    public SwingDataBuilder CheckDotReversal(SwingData? lastSwing = null)
+    {
+        if (lastSwing == null || !_notes.All(x => x.D == CutDirection.Any))
+            return this;
+
+        bool reverse = false;
+        SwingFrame nextFrame = _frames[0];
+        SwingFrame nextEndFrame = _frames[_frames.Count - 1];
+        SwingFrame lastFrame = lastSwing.EndFrame;
+
+        float nextAFN = nextFrame.dir.ToRotation(_parity, _hand);
+        float lastAFN = lastFrame.dir.ToRotation(lastSwing.Parity, _hand);
+
+        float AFNDifference = Math.Abs(nextAFN - lastAFN);
+        if (AFNDifference > 90)
+            reverse = true;
+        else if (AFNDifference == 90)
+        {
+            double firstDist = Math.Round(Vector2.Distance(new(lastFrame.x, lastFrame.y), new(nextFrame.x, nextFrame.y)), 2);
+            double lastDist = Math.Round(Vector2.Distance(new(lastFrame.x, lastFrame.y), new(nextEndFrame.x, nextEndFrame.y)), 2);
+
+            if (lastDist < firstDist)
+                reverse = true;
+            else if (firstDist == lastDist)
+            {
+                float altAFN = SwingUtils.OpposingCutDict[nextFrame.dir].ToRotation(_parity, _hand);
+                if (nextAFN >= altAFN)
+                    reverse = true;
+            }
+        }
+
+        if (reverse)
+            ReversePath();
+
+        return this;
+    }
+
     public SwingDataBuilder ReversePath() {
         _frames = _frames.FlipFrames();
         _notes.Reverse();

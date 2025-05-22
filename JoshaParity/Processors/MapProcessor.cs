@@ -28,8 +28,8 @@ public class MapProcessor
     private static BotState SimulateMap(BotState startState, MapObjects data)
     {
         // Gather all map objects in one list
-        List<BeatObject> mapObjects = data.Notes
-            .Concat<BeatObject>(data.Chains)
+        List<BeatGridObject> mapObjects = data.Notes
+            .Concat<BeatGridObject>(data.Chains)
             .Concat(data.Bombs)
             .Concat(data.Obstacles)
             .Concat(data.Arcs)
@@ -42,13 +42,13 @@ public class MapProcessor
         // Sliding map context window of 2 beats
         float slidingWindowSize = 2.0f;
         int windowEndIndex = 0;
-        Queue<BeatObject> contextWindow = new();
+        Queue<BeatGridObject> contextWindow = new();
 
         // Iterate through all objects
         for (int i = 0; i < mapObjects.Count; i++)
         {
             // Construct the context window
-            BeatObject obj = mapObjects[i];
+            BeatGridObject obj = mapObjects[i];
             float windowLimit = obj.B + slidingWindowSize;
 
             while (contextWindow.Count > 0 && contextWindow.Peek().B < obj.B)
@@ -68,7 +68,16 @@ public class MapProcessor
             List<Note>? swingNotes = currentState.SwingBuffer.Process(note);
             if (swingNotes is not null && swingNotes.Count != 0) {
                 Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
-                SwingData swing = GenerateSwing(currentState, swingNotes, hand);
+                SwingData swing = GenerateSwing(currentState, [.. contextWindow], swingNotes, hand);
+                currentState.AddSwing(swing, hand);
+            }
+        }
+
+        foreach (Hand hand in Enum.GetValues(typeof(Hand)))
+        {
+            List<Note>? swingNotes = currentState.SwingBuffer.ForceFlush(hand);
+            if (swingNotes is not null && swingNotes.Count != 0) { 
+                SwingData swing = GenerateSwing(currentState, [.. contextWindow], swingNotes, hand);
                 currentState.AddSwing(swing, hand);
             }
         }
@@ -77,7 +86,7 @@ public class MapProcessor
     }
 
     /// <summary> Generates a swing given a list of notes </summary>
-    private static SwingData GenerateSwing(BotState state, List<Note> swingNotes, Hand hand)
+    private static SwingData GenerateSwing(BotState state, List<BeatGridObject> slidingContext, List<Note> swingNotes, Hand hand)
     {
         List<SwingData> leftSwingData = state.GetAllSwings(Hand.Left).ToList();
         List<SwingData> rightSwingData = state.GetAllSwings(Hand.Right).ToList();
@@ -100,8 +109,8 @@ public class MapProcessor
         builder.WithEBPM(swingEBPM).WithResetType(resetType).WithParity(predictedParity);
         builder.PathSwing(lastSwing);
 
-        // ADD THE DOT CHECKS YOU MUPPET
-
+        // Check if any reversal is needed for pure dot swings (We can try every option once multi-pathing is implemented)
+        builder.CheckDotReversal(lastSwing);
         return builder.Build();
     }
 }
