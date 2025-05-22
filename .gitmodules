@@ -1,0 +1,3 @@
+[submodule "JoshaParser"]
+	path = JoshaParser
+	url = https://github.com/joshabi/joshaparser.git
