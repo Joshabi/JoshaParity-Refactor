@@ -1,4 +1,5 @@
-﻿using JoshaParity.Data;
+﻿using System.Numerics;
+using JoshaParity.Data;
 using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
 
@@ -52,7 +53,7 @@ public class MapProcessor
 
         mapObjects.Sort((a, b) => a.B.CompareTo(b.B));
         mapObjects.RemoveAll(x => x.B < startState.BeatTime);
-        BotState currentState = startState;
+        BotState state = startState;
 
         // Sliding map context window of 2 beats
         float slidingWindowSize = 2.0f;
@@ -87,25 +88,30 @@ public class MapProcessor
             if (obj is not Note note) { continue; }
 
             // Process note in the buffer. If we get a result we can build a swing with the notes
-            List<Note>? swingNotes = currentState.SwingBuffer.Process(note);
+            Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
+            List<Note>? swingNotes = state.SwingBuffer.Process(note);
             if (swingNotes is not null && swingNotes.Count != 0) {
-                Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
-                SwingData swing = GenerateSwing(currentState, [.. contextWindow], swingNotes, hand);
-                currentState.AddSwing(swing, hand);
+                SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
+                state.AddSwing(swing, hand);
             }
+
+            if (hand == Hand.Left)
+                state.UpdatePose(note.B, leftHand: new Vector2(note.X, note.Y));
+            else
+                state.UpdatePose(note.B, rightHand: new Vector2(note.X, note.Y));
         }
 
         // Flush the remaining note buffer
         foreach (Hand hand in Enum.GetValues(typeof(Hand)))
         {
-            List<Note>? swingNotes = currentState.SwingBuffer.ForceFlush(hand);
+            List<Note>? swingNotes = state.SwingBuffer.ForceFlush(hand);
             if (swingNotes is not null && swingNotes.Count != 0) { 
-                SwingData swing = GenerateSwing(currentState, [.. contextWindow], swingNotes, hand);
-                currentState.AddSwing(swing, hand);
+                SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
+                state.AddSwing(swing, hand);
             }
         }
 
-        return currentState;
+        return state;
     }
 
     /// <summary> Generates a swing given a list of notes </summary>

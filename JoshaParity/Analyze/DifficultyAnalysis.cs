@@ -26,6 +26,9 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the associated BPM Context for this difficulty </summary>
     public BPMContext GetBPMContext() => _bpmContext;
 
+    /// <summary> Returns the finalized bot state </summary>
+    public BotState GetBotState() => _state;
+
     /// <summary> Returns swing data for a given hand </summary>
     public List<SwingData> GetSwingData(HandResult hand) => hand switch
     {
@@ -34,6 +37,9 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         HandResult.Both => _state.GetJointSwingData(),
         _ => []
     };
+
+    /// <summary> Returns movement history for the bot </summary>
+    public List<BotPose> GetMovementData() => _state.GetAllMovementHistory();
 
     /// <summary> Gets the average NPS across the difficulty </summary>
     public float GetNPS(HandResult hand)
