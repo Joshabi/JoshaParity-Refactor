@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using JoshaParity.Processors;
-using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
 
 namespace JoshaParity.Data;
@@ -36,6 +35,7 @@ public class BotState
     public List<BotPose> MovementHistory { get; } = [];
     public BPMContext BPMContext { get; private set; }
     internal SwingBuffer SwingBuffer { get; private set; } = new();
+    internal WallBuffer WallBuffer { get; private set; } = new();
 
     // Contextual data
     public float BeatTime { get; set; } = 0;
@@ -64,6 +64,7 @@ public class BotState
         {
             BeatTime = this.BeatTime,
             SwingBuffer = this.SwingBuffer.Clone(),
+            WallBuffer = this.WallBuffer.Clone(),
             LeftHandPosition = this.LeftHandPosition,
             RightHandPosition = this.RightHandPosition,
             HeadPosition = this.HeadPosition
@@ -79,16 +80,60 @@ public class BotState
     }
 
     /// <summary> Updates the bots position and creates a new movement record if appropriate </summary>
-    public void UpdatePose(float beatTime, Vector2? leftHand = null, Vector2? rightHand = null)
+    public void UpdatePose(float beatTime, Vector2? leftHand = null, Vector2? rightHand = null, Obstacle? obstacle = null)
     {
         Vector2 newLeft = leftHand ?? LeftHandPosition;
         Vector2 newRight = rightHand ?? RightHandPosition;
-        Vector2 newHead = (newLeft + newRight) / 2;
-        newHead.Y = 1.5f;                                      // Needed for now as currently no duck detection
-        newHead.X = SwingUtils.Clamp(newHead.X += 0.5f, 1,3);  // Temporary
-        BotPose newPose = new(beatTime, newLeft, newRight, newHead);
 
-        if (MovementHistory.Count == 0 || !MovementHistory[MovementHistory.Count-1].IsSameAs(newPose)) {
+        var availableSpaces = WallBuffer.GetAvailableGridSpaces(beatTime);
+        int currentX = (int)HeadPosition.X;
+        int currentY = (int)HeadPosition.Y;
+        int newX = currentX;
+        int desiredY = currentY;
+
+        // Attempt to return to neutral position if no influence in 2 beats
+        if (beatTime - WallBuffer.LastDodgeInfluence >= 2 && currentX != 1)
+            if (availableSpaces.Contains((1, currentY)))
+                newX = 1;
+        if (beatTime - WallBuffer.LastDuckInfluence >= 2 && currentY != 1)
+            if (availableSpaces.Contains((newX, 1)))
+                desiredY = 1;
+
+        // If current position is blocked, follow priority of movements
+        if (!availableSpaces.Contains((newX, desiredY)))
+        {
+            // Define candidate positions in priority order
+            var candidatePositions = new List<(int x, int y)>
+            {
+                (1, 1), (2, 1), // 1. Center lanes without ducking
+                (1, 0), (2, 0), // 2. Center lanes with ducking
+                (0, 1), (3, 1), // 3. Outer lanes without ducking
+                (0, 0), (3, 0), // 4. Outer lanes with ducking
+            };
+
+            // Find the first available position based on priority
+            var availablePosition = candidatePositions.FirstOrDefault(pos => availableSpaces.Contains(pos));
+            if (availablePosition != default) {
+                newX = availablePosition.x;
+                desiredY = availablePosition.y;
+            } else if (availableSpaces.Count > 0) {
+                // Fallback: pick the closest available space
+                var (x, y) = availableSpaces.OrderBy(pos => Math.Abs(pos.x - newX) + Math.Abs(pos.y - desiredY)).First();
+                newX = x; 
+                desiredY = y;
+            }
+        }
+
+        // Update last influence times if we had to move or duck
+        if (newX != currentX)
+            WallBuffer.LastDodgeInfluence = (obstacle is not null) ? obstacle.B + obstacle.D : beatTime;
+        if (desiredY != currentY)
+            WallBuffer.LastDuckInfluence = (obstacle is not null) ? obstacle.B + obstacle.D : beatTime;
+
+        Vector2 newHead = new(newX, desiredY);
+        BotPose newPose = new(beatTime, newLeft, newRight, newHead);
+        if (MovementHistory.Count == 0 || !MovementHistory[MovementHistory.Count - 1].IsSameAs(newPose))
+        {
             MovementHistory.Add(newPose);
             LeftHandPosition = newLeft;
             RightHandPosition = newRight;

@@ -84,21 +84,28 @@ public class MapProcessor
                     break;
             }
 
-            // Temporary: No other objects currently do anything
-            if (obj is not Note note) { continue; }
+            if (obj is Note note) {
 
-            // Process note in the buffer. If we get a result we can build a swing with the notes
-            Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
-            List<Note>? swingNotes = state.SwingBuffer.Process(note);
-            if (swingNotes is not null && swingNotes.Count != 0) {
-                SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
-                state.AddSwing(swing, hand);
+                // Process note in the buffer. If we get a result we can build a swing with the notes
+                Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
+                List<Note>? swingNotes = state.SwingBuffer.Process(note);
+                if (swingNotes is not null && swingNotes.Count != 0)
+                {
+                    SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
+                    state.AddSwing(swing, hand);
+                }
+
+                if (hand == Hand.Left)
+                    state.UpdatePose(note.B, leftHand: new Vector2(note.X, note.Y));
+                else
+                    state.UpdatePose(note.B, rightHand: new Vector2(note.X, note.Y));
             }
-
-            if (hand == Hand.Left)
-                state.UpdatePose(note.B, leftHand: new Vector2(note.X, note.Y));
-            else
-                state.UpdatePose(note.B, rightHand: new Vector2(note.X, note.Y));
+            else if (obj is Obstacle obstacle)
+            {
+                state.WallBuffer.Process(obstacle);
+                state.WallBuffer.RemoveExpired(obstacle.B);
+                state.UpdatePose(obstacle.B, obstacle: obstacle);
+            }
         }
 
         // Flush the remaining note buffer
