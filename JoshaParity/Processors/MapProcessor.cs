@@ -24,8 +24,23 @@ public class MapProcessor
         return SimulateMap(initState, mapObjects);
     }
 
-    /// <summary> Simulates map objects starting from a given state. Returns the final state after processing all objects. </summary>
     private static BotState SimulateMap(BotState startState, MapObjects data)
+        => SimulateForward(startState, data, null, null);
+
+    /// <summary> Simulate state forward by X of Y type objects </summary>
+    public static BotState SimulateForwardByType<T>(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null) where T : BeatGridObject
+        => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => o is T);
+
+    /// <summary> Simulate state forward by X total objects </summary>
+    public static BotState SimulateForwardByTotal(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null)
+        => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => true);
+
+    /// <summary> Simulates forward an amount of objects and stops when a predicate is met, returning the current bot state. </summary>
+    private static BotState SimulateForward(
+        BotState startState, 
+        MapObjects data,
+        int? maxObjectCount = null,
+        Func<BeatGridObject, bool>? predicate = null)
     {
         // Gather all map objects in one list
         List<BeatGridObject> mapObjects = data.Notes
@@ -45,6 +60,7 @@ public class MapProcessor
         Queue<BeatGridObject> contextWindow = new();
 
         // Iterate through all objects
+        int processed = 0;
         for (int i = 0; i < mapObjects.Count; i++)
         {
             // Construct the context window
@@ -54,14 +70,20 @@ public class MapProcessor
             while (contextWindow.Count > 0 && contextWindow.Peek().B < obj.B)
                 contextWindow.Dequeue();
 
-            while (windowEndIndex < mapObjects.Count && mapObjects[windowEndIndex].B <= windowLimit)
-            {
+            while (windowEndIndex < mapObjects.Count && mapObjects[windowEndIndex].B <= windowLimit) {
                 if (mapObjects[windowEndIndex].B >= obj.B)
                     contextWindow.Enqueue(mapObjects[windowEndIndex]);
                 windowEndIndex++;
             }
 
-            // Temporary: If not a note, we don't care
+            // Simulation break condition
+            if (predicate is null || predicate(obj)) {
+                processed++;
+                if (maxObjectCount.HasValue && processed > maxObjectCount.Value)
+                    break;
+            }
+
+            // Temporary: No other objects currently do anything
             if (obj is not Note note) { continue; }
 
             // Process note in the buffer. If we get a result we can build a swing with the notes
@@ -73,6 +95,7 @@ public class MapProcessor
             }
         }
 
+        // Flush the remaining note buffer
         foreach (Hand hand in Enum.GetValues(typeof(Hand)))
         {
             List<Note>? swingNotes = currentState.SwingBuffer.ForceFlush(hand);
