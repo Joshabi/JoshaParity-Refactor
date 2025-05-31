@@ -30,15 +30,14 @@ public class SwingBuffer
     public List<Note>? Process(Note note)
     {
         Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
-        var buffer = _buffers[hand];
+        List<Note> buffer = _buffers[hand];
 
-        if (buffer.Count == 0 || IsInGroup(buffer[buffer.Count-1], note))
-        {
+        if (buffer.Count == 0 || IsInGroup(buffer[buffer.Count - 1], note)) {
             buffer.Add(note);
             return null;
         }
 
-        List<Note> finalized = new(buffer);
+        List<Note> finalized = [.. buffer];
         buffer.Clear();
         buffer.Add(note);
         return finalized;
@@ -47,10 +46,10 @@ public class SwingBuffer
     /// <summary> Forces the flush of any remaining notes in the buffer for the given hand. </summary>
     public List<Note> ForceFlush(Hand hand)
     {
-        var buffer = _buffers[hand];
+        List<Note> buffer = _buffers[hand];
         if (buffer.Count == 0) return [];
 
-        var result = new List<Note>(buffer);
+        List<Note> result = [.. buffer];
         buffer.Clear();
         return result;
     }
@@ -58,13 +57,12 @@ public class SwingBuffer
     /// <summary> Attempts to flush the buffer if no further valid groupings are expected. </summary>
     public List<Note>? TryFlushWithLookahead(Note nextNote)
     {
-        var hand = nextNote.C == 0 ? Hand.Left : Hand.Right;
-        var buffer = _buffers[hand];
+        Hand hand = nextNote.C == 0 ? Hand.Left : Hand.Right;
+        List<Note> buffer = _buffers[hand];
         if (buffer.Count == 0) return null;
 
-        if (!IsInGroup(buffer[buffer.Count-1], nextNote))
-        {
-            var finalized = new List<Note>(buffer);
+        if (!IsInGroup(buffer[buffer.Count - 1], nextNote)) {
+            List<Note> finalized = [.. buffer];
             buffer.Clear();
             return finalized;
         }
@@ -79,7 +77,6 @@ public class SwingBuffer
     {
         float prevEndMs = prev is Chain chain ? chain.TMS : prev.MS;
         float delta = next.MS - prevEndMs;
-        if (delta > SliderPrecision) return false;
-        return prev.D == CutDirection.Any || next.D == CutDirection.Any || prev.D == next.D || prev.D.IsWithinIntervals(next.D, 1);
+        return delta <= SliderPrecision && (prev.D == CutDirection.Any || next.D == CutDirection.Any || prev.D == next.D || prev.D.IsWithinIntervals(next.D, 1));
     }
 }

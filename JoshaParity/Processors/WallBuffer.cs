@@ -13,13 +13,15 @@ public class WallBuffer
     public float LastDuckInfluence { get; set; } = -float.MaxValue;
 
     /// <summary> Processes a wall and updates active wall context </summary>
-    public void Process(Obstacle wall) {
+    public void Process(Obstacle wall)
+    {
         if (!ActiveWalls.Contains(wall))
             ActiveWalls.Add(wall);
     }
 
     /// <summary> Processes a list of walls and updates active wall context </summary>
-    public void BatchProcess(IEnumerable<Obstacle> walls) {
+    public void BatchProcess(IEnumerable<Obstacle> walls)
+    {
         foreach (Obstacle wall in walls)
             Process(wall);
     }
@@ -32,10 +34,8 @@ public class WallBuffer
     {
         RemoveExpired(currentTime);
         List<(int x, int y)> availableGridSpaces = [];
-        for (int x = 0; x <= 3; x++)
-        {
-            for (int y = 0; y <= 2; y++)
-            {
+        for (int x = 0; x <= 3; x++) {
+            for (int y = 0; y <= 2; y++) {
                 if (!IsBlocked(x, y))
                     availableGridSpaces.Add((x, y));
             }
@@ -46,8 +46,7 @@ public class WallBuffer
     /// <summary> Returns true if a grid space is blocked by a wall </summary>
     public bool IsBlocked(int x, int y)
     {
-        foreach (var wall in ActiveWalls)
-        {
+        foreach (Obstacle wall in ActiveWalls) {
             int startX = Math.Max(0, wall.X);
             int endX = Math.Min(3, wall.X + wall.W - 1);
             int startY = Math.Max(0, wall.Y - 1);
@@ -62,8 +61,9 @@ public class WallBuffer
     /// <summary> Clone the wall state </summary>
     public WallBuffer Clone()
     {
-        WallBuffer clone = new() {
-            ActiveWalls = new List<Obstacle>(this.ActiveWalls)
+        WallBuffer clone = new()
+        {
+            ActiveWalls = [.. this.ActiveWalls]
         };
         return clone;
     }

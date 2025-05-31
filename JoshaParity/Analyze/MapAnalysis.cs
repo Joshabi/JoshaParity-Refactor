@@ -11,7 +11,7 @@ namespace JoshaParity.Analyze;
 public class MapAnalysis
 {
     private readonly Dictionary<string, Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>> _results =
-        new Dictionary<string, Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>>(StringComparer.OrdinalIgnoreCase);
+        new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, IReadOnlyDictionary<BeatmapDifficultyRank, DifficultyAnalysis>> Results =>
         _results.ToDictionary(kvp => kvp.Key, kvp => (IReadOnlyDictionary<BeatmapDifficultyRank, DifficultyAnalysis>)kvp.Value);
@@ -29,9 +29,8 @@ public class MapAnalysis
         if (string.IsNullOrWhiteSpace(characteristic) || analysis == null)
             return false;
 
-        if (!_results.TryGetValue(characteristic, out var difficultyDict))
-        {
-            difficultyDict = new Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>();
+        if (!_results.TryGetValue(characteristic, out Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>? difficultyDict)) {
+            difficultyDict = [];
             _results[characteristic] = difficultyDict;
         }
         difficultyDict[difficultyRank] = analysis;
@@ -40,24 +39,23 @@ public class MapAnalysis
 
     public DifficultyAnalysis GetAnalysis(string characteristic, BeatmapDifficultyRank difficultyRank)
     {
-        if (string.IsNullOrWhiteSpace(characteristic)) return null;
-        return _results.TryGetValue(characteristic, out var difficultyDict) && difficultyDict.TryGetValue(difficultyRank, out var analysis)
+        return string.IsNullOrWhiteSpace(characteristic)
+            ? null
+            : _results.TryGetValue(characteristic, out Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>? difficultyDict) && difficultyDict.TryGetValue(difficultyRank, out DifficultyAnalysis? analysis)
             ? analysis
             : null;
     }
 
     public IReadOnlyCollection<DifficultyAnalysis> GetAnalysisByCharacteristic(string characteristic)
     {
-        if (string.IsNullOrWhiteSpace(characteristic)) return new List<DifficultyAnalysis>();
-        return _results.TryGetValue(characteristic, out var difficultyDict)
+        return string.IsNullOrWhiteSpace(characteristic)
+            ? []
+            : _results.TryGetValue(characteristic, out Dictionary<BeatmapDifficultyRank, DifficultyAnalysis>? difficultyDict)
             ? (IReadOnlyCollection<DifficultyAnalysis>)difficultyDict.Values.ToList()
-            : new List<DifficultyAnalysis>();
+            : [];
     }
 
-    public IReadOnlyCollection<DifficultyAnalysis> GetAllAnalyses()
-    {
-        return _results.Values.SelectMany(difficultyDict => difficultyDict.Values).ToList();
-    }
+    public IReadOnlyCollection<DifficultyAnalysis> GetAllAnalyses() => _results.Values.SelectMany(difficultyDict => difficultyDict.Values).ToList();
 }
 
 /// <summary> Performs analysis on a mapset </summary>  
@@ -66,9 +64,9 @@ public static class MapAnalyser
     public static async Task<MapAnalysis> AnalyseAsync(SongInfo songData, AudioInfo audioData = null)
     {
         if (songData == null) throw new ArgumentNullException(nameof(songData));
-        MapAnalysis analysis = new MapAnalysis(songData);
+        MapAnalysis analysis = new(songData);
 
-        var tasks = songData.DifficultyBeatmaps.Select(async diffInfo =>
+        IEnumerable<Task> tasks = songData.DifficultyBeatmaps.Select(async diffInfo =>
         {
             BPMContext bpmContext = audioData == null
                 ? BPMContext.CreateBPMContext(songData.Song.BPM, diffInfo.DifficultyData.RawBPMEvents, songData.SongTimeOffset)
@@ -77,7 +75,7 @@ public static class MapAnalyser
             MapObjects objects = MapObjectsFromData(diffInfo.DifficultyData, bpmContext);
             BotState botState = await Task.Run(() => MapProcessor.Run(objects, bpmContext));
 
-            DifficultyAnalysis diffAnalysis = new DifficultyAnalysis(diffInfo.DifficultyData, bpmContext, botState);
+            DifficultyAnalysis diffAnalysis = new(diffInfo.DifficultyData, bpmContext, botState);
             analysis.AddAnalysis(diffInfo.Characteristic, diffInfo.Rank, diffAnalysis);
         });
 

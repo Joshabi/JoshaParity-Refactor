@@ -1,6 +1,6 @@
-﻿using System.Numerics;
-using JoshaParity.Data;
+﻿using JoshaParity.Data;
 using JoshaParser.Data.Beatmap;
+using System.Numerics;
 
 namespace JoshaParity.Utils;
 
@@ -23,7 +23,7 @@ public static class SwingUtils
 
     /// <summary> Cut Direction (as index) to Directional Vector (not normalized) </summary>
     public static readonly Vector2[] DirectionalVectors =
-    {
+    [
         new(0, 1),   // up
         new(0, -1),  // down
         new(-1, 0),  // left
@@ -32,7 +32,7 @@ public static class SwingUtils
         new(1, 1),  // up right
         new(-1, -1), // down left
         new(1, -1)  // down right
-    };
+    ];
 
     /// <summary> Converts Directional Vector (not normalized, key) to Cut Direction (value)</summary>
     public static readonly Dictionary<Vector2, CutDirection> DirectionalVectorToCutDirection = new()
@@ -58,8 +58,7 @@ public static class SwingUtils
     }
 
     /// <summary> Given 2 notes, calculate a Cut Direction ID for the direction from first to last note </summary>
-    public static CutDirection CutDirFromNoteToNote(Note firstNote, Note lastNote)
-    { return CutDirFromVector(new Vector2(lastNote.X, lastNote.Y) - new Vector2(firstNote.X, firstNote.Y)); }
+    public static CutDirection CutDirFromNoteToNote(Note firstNote, Note lastNote) => CutDirFromVector(new Vector2(lastNote.X, lastNote.Y) - new Vector2(firstNote.X, firstNote.Y));
 
     /// <summary> Returns the 2 notes furthest apart in a list </summary>
     public static (Note NoteA, Note NoteB) GetFurthestApartNotes(this List<Note> notes)
@@ -80,9 +79,6 @@ public static class SwingUtils
         return (furthestPair.Note1, furthestPair.Note2);
     }
 
-    /// THE BELOW SHOULD BE REVIEWED FOR EFFIENCY
-    /// THE CODE WAS HASTILY THROWN TOGETHER WHEN IMPLEMENTED LAST TIME
-
     /// <summary> Calculates a swing order grouped by time snap </summary>
     public static List<List<Note>> SortNotes(List<Note> notes, SwingData? lastSwing)
     {
@@ -91,12 +87,10 @@ public static class SwingUtils
         List<List<Note>> sortedGroups = [];
 
         // Group notes by time snap then iterate
-        var groupedByTime = sortedByTime.GroupBy(note => Math.Round(note.B, 3)).ToList();
-        for (int i = 0; i < groupedByTime.Count; i++)
-        {
+        List<IGrouping<double, Note>> groupedByTime = [.. sortedByTime.GroupBy(note => Math.Round(note.B, 3))];
+        for (int i = 0; i < groupedByTime.Count; i++) {
             List<Note> notesThisSnap = [.. groupedByTime[i]];
-            if (notesThisSnap.Count > 1)
-            {
+            if (notesThisSnap.Count > 1) {
                 Note? nextNote = null;
                 if (i + 1 < groupedByTime.Count)
                     nextNote = groupedByTime[i + 1].FirstOrDefault();
@@ -110,17 +104,15 @@ public static class SwingUtils
     }
 
     /// <summary> Merges grouped notes down to a single list in order </summary>
-    public static List<Note> ToSingleList(this List<List<Note>> groups) { return groups.SelectMany(group => group).ToList(); }
+    public static List<Note> ToSingleList(this List<List<Note>> groups) => [.. groups.SelectMany(group => group)];
 
     /// <summary> Orders notes on the same time snap by average direction or vector between 2 furthest notes (dots) </summary>
     public static List<Note> SnappedSwingSort(List<Note> notesToSort, Note? lastNote = null, Note? nextNote = null)
     {
-        if (notesToSort.Any(x => x.D != CutDirection.Any))
-        {
+        if (notesToSort.Any(x => x.D != CutDirection.Any)) {
             // Calculate average direction from all arrowed notes present
             Vector2 totalDirection = Vector2.Zero;
-            foreach (Note note in notesToSort)
-            {
+            foreach (Note note in notesToSort) {
                 if (note.D == CutDirection.Any) continue;
                 totalDirection += DirectionalVectors[(int)note.D];
             }
@@ -133,8 +125,8 @@ public static class SwingUtils
         // Handles cases where all notes are dots
         // Find two furthest apart notes and establish a cut direction
         (Note noteA, Note noteB) = notesToSort.GetFurthestApartNotes();
-        Vector2 noteAPos = new Vector2(noteA.X, noteA.Y);
-        Vector2 noteBPos = new Vector2(noteB.X, noteB.Y);
+        Vector2 noteAPos = new(noteA.X, noteA.Y);
+        Vector2 noteBPos = new(noteB.X, noteB.Y);
         Vector2 atb = noteBPos - noteAPos;
 
         // Normalize the direction vector between noteA and noteB
@@ -143,8 +135,7 @@ public static class SwingUtils
 
         // Determine if we need to reverse the order based on the lastNote or nextNote
         bool shouldReverse = false;
-        if (lastNote != null)
-        {
+        if (lastNote != null) {
             Vector2 lastNotePos = new(lastNote.X, lastNote.Y);
             Vector2 lastToFirst = noteAPos - lastNotePos;
 
@@ -154,11 +145,9 @@ public static class SwingUtils
             double angle = Math.Acos(Clamp(Vector2.Dot(lastToFirst, atb), -1.0f, 1.0f));
 
             // If the angle is greater than 90 degrees, we might need to reverse
-            if (angle > Math.PI / 2 && angle < Math.PI)
+            if (angle is > (Math.PI / 2) and < Math.PI)
                 shouldReverse = true;
-        }
-        else if (nextNote != null)
-        {
+        } else if (nextNote != null) {
             Vector2 nextNotePos = new(nextNote.X, nextNote.Y);
             Vector2 lastToFirst = nextNotePos - noteBPos;
 
@@ -197,9 +186,35 @@ public static class SwingUtils
             ? lastDir.MidwayTo(noteToNoteDir, true) : lastDir.MidwayTo(noteToNoteDir, false);
     }
 
-    /// <summary> Clamp a value between a minimum and maximum </summary>
-    public static float Clamp(float value, float min, float max)
+    /// <summary> Given 2 swings of alternate, produce an inbetween swing </summary>
+    public static SwingData GetInbetweenSwingData(SwingData lastSwing, SwingData nextSwing)
     {
-        return value < min ? min : value > max ? max : value;
+        SwingFrame lastFrame = lastSwing.EndFrame;
+        SwingFrame nextFrame = nextSwing.StartFrame;
+
+        float startBeat = lastSwing.EndFrame.beats + Math.Min((nextFrame.beats - lastFrame.beats) * 0.3f, 0.5f);
+        float endBeat = startBeat + Math.Min((nextFrame.beats - lastFrame.beats) * 0.2f, 1f);
+
+        float midX = (lastSwing.EndFrame.x + nextSwing.StartFrame.x) / 2;
+        float midY = (lastSwing.EndFrame.y + nextSwing.StartFrame.y) / 2;
+
+        Parity inbetweenParity = (nextSwing.Parity == Parity.Forehand) ? Parity.Backhand : Parity.Forehand;
+        CutDirection inbetweenDir = OpposingCutDict[lastSwing.EndFrame.dir.MidwayTo(nextSwing.StartFrame.dir, true)];
+        SwingFrame startFrame = new() { beats = startBeat, x = midX, y = midY, dir = inbetweenDir };
+        SwingFrame endFrame = new() { beats = endBeat, x = midX, y = midY, dir = inbetweenDir };
+
+        // Create the in-between swing data with flipped parity
+        return new SwingData(
+            hand: lastSwing.Hand,
+            parity: inbetweenParity,
+            swingType: SwingType.Normal,
+            resetType: ResetType.None,
+            frames: [startFrame, endFrame],
+            notes: [],
+            swingEBPM: lastSwing.SwingEBPM
+        );
     }
+
+    /// <summary> Clamp a value between a minimum and maximum </summary>
+    public static float Clamp(float value, float min, float max) => value < min ? min : value > max ? max : value;
 }

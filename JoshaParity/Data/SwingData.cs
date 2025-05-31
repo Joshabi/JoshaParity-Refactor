@@ -1,6 +1,6 @@
-﻿using System.Numerics;
-using JoshaParity.Utils;
+﻿using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
+using System.Numerics;
 
 namespace JoshaParity.Data;
 
@@ -57,7 +57,7 @@ public sealed class SwingData(Hand hand, Parity parity, SwingType swingType, Res
     /// <summary> Returns the first motion frame of this swing </summary>
     public SwingFrame StartFrame => Frames[0];
     /// <summary> Returns the last motion frame of this swing </summary>
-    public SwingFrame EndFrame => Frames[Frames.Count-1];
+    public SwingFrame EndFrame => Frames[Frames.Count - 1];
     /// <summary> Is this swing instigating a reset? </summary>
     public bool IsReset => ResetType != ResetType.None;
     /// <summary> Overview of swing information </summary>
@@ -91,18 +91,26 @@ public class SwingDataBuilder
     private List<Note> _notes = [];
     private float _swingEBPM = 0;
 
+    public bool IsReset => _resetType != ResetType.None;
+
     public SwingDataBuilder WithHand(Hand hand) => Set(ref _hand, hand);
+
     public SwingDataBuilder WithParity(Parity parity) => Set(ref _parity, parity);
+
     public SwingDataBuilder WithSwingType(SwingType type) => Set(ref _swingType, type);
+
     public SwingDataBuilder WithResetType(ResetType type) => Set(ref _resetType, type);
+
     public SwingDataBuilder WithEBPM(float ebpm) => Set(ref _swingEBPM, ebpm);
 
-    public SwingDataBuilder WithNotes(List<Note> notes) {
+    public SwingDataBuilder WithNotes(List<Note> notes)
+    {
         _notes = notes?.ToList() ?? [];
         return this;
     }
 
-    public SwingDataBuilder WithFrames(List<SwingFrame> frames) {
+    public SwingDataBuilder WithFrames(List<SwingFrame> frames)
+    {
         _frames = frames?.ToList() ?? [];
         return this;
     }
@@ -123,15 +131,13 @@ public class SwingDataBuilder
         float AFNDifference = Math.Abs(nextAFN - lastAFN);
         if (AFNDifference > 90)
             reverse = true;
-        else if (AFNDifference == 90)
-        {
+        else if (AFNDifference == 90) {
             double firstDist = Math.Round(Vector2.Distance(new(lastFrame.x, lastFrame.y), new(nextFrame.x, nextFrame.y)), 2);
             double lastDist = Math.Round(Vector2.Distance(new(lastFrame.x, lastFrame.y), new(nextEndFrame.x, nextEndFrame.y)), 2);
 
             if (lastDist < firstDist)
                 reverse = true;
-            else if (firstDist == lastDist)
-            {
+            else if (firstDist == lastDist) {
                 float altAFN = SwingUtils.OpposingCutDict[nextFrame.dir].ToRotation(_parity, _hand);
                 if (nextAFN >= altAFN)
                     reverse = true;
@@ -144,29 +150,28 @@ public class SwingDataBuilder
         return this;
     }
 
-    public SwingDataBuilder ReversePath() {
+    public SwingDataBuilder ReversePath()
+    {
         _frames = _frames.FlipFrames();
         _notes.Reverse();
         return this;
     }
 
-    public SwingDataBuilder PathSwing(SwingData? lastSwing = null) {
+    public SwingDataBuilder PathSwing(SwingData? lastSwing = null)
+    {
         List<List<Note>> sortedGroups = SwingUtils.SortNotes([.. _notes], lastSwing);
         List<SwingFrame> newFrames = [];
         Note? previousNote = null;
         _notes = sortedGroups.ToSingleList();
 
         // Special Checks - Special Snapped Windows
-        if (_notes.Count == 2 && _notes.All(x => Math.Round(x.B, 3) == Math.Round(_notes[0].B, 3)))
-        {
-            var horDiff = Math.Abs(_notes[1].X - _notes[0].X);
-            var verDiff = Math.Abs(_notes[1].Y - _notes[0].Y);
-            if ((horDiff == 1 && verDiff == 2) || (horDiff == 2 && verDiff == 1))
-            {
+        if (_notes.Count == 2 && _notes.All(x => Math.Round(x.B, 3) == Math.Round(_notes[0].B, 3))) {
+            int horDiff = Math.Abs(_notes[1].X - _notes[0].X);
+            int verDiff = Math.Abs(_notes[1].Y - _notes[0].Y);
+            if ((horDiff == 1 && verDiff == 2) || (horDiff == 2 && verDiff == 1)) {
                 List<SwingFrame> frames = [];
                 Vector2 dir = new(_notes[1].X - _notes[0].X, _notes[1].Y - _notes[0].Y);
-                foreach (Note note in _notes)
-                {
+                foreach (Note note in _notes) {
                     frames.Add(new SwingFrame()
                     {
                         x = note.X,
@@ -181,26 +186,23 @@ public class SwingDataBuilder
         }
 
         // For each group of notes...
-        for (int i = 0; i < sortedGroups.Count; i++)
-        {
+        for (int i = 0; i < sortedGroups.Count; i++) {
             List<Note> notesThisSnap = sortedGroups[i];
             Note? nextNote = null;
             if (i + 1 < sortedGroups.Count)
                 nextNote = sortedGroups[i + 1].FirstOrDefault();
 
             // For each note in this time group...
-            for (int j = 0; j < notesThisSnap.Count; j++)
-            {
+            for (int j = 0; j < notesThisSnap.Count; j++) {
                 Note currentNote = notesThisSnap[j];
                 if (notesThisSnap.Count > j + 1) nextNote = notesThisSnap[j + 1];
-                SwingFrame frame = new SwingFrame();
+                SwingFrame frame = new();
                 frame.FromNote(currentNote);
                 frame.dir = currentNote.D;
 
-                if (currentNote.D == CutDirection.Any)
-                {
+                if (currentNote.D == CutDirection.Any) {
                     Note referenceNote = (j == 0)
-                        ? previousNote ?? (nextNote ?? currentNote)
+                        ? previousNote ?? nextNote ?? currentNote
                         : notesThisSnap[j - 1];
 
                     frame.dir = i == 0 && notesThisSnap.All(x => x.D == CutDirection.Any) && sortedGroups.Count > 1
@@ -230,13 +232,16 @@ public class SwingDataBuilder
         return this;
     }
 
-    private SwingDataBuilder Set<T>(ref T field, T value) {
+    private SwingDataBuilder Set<T>(ref T field, T value)
+    {
         field = value;
         return this;
     }
 
-    public SwingData Build() {
-        if (_frames == null || _frames.Count == 0) throw new InvalidOperationException("Frames cannot be null or empty");
-        return new SwingData(_hand, _parity, _swingType, _resetType, _frames, _notes, _swingEBPM);
+    public SwingData Build()
+    {
+        return _frames == null || _frames.Count == 0
+            ? throw new InvalidOperationException("Frames cannot be null or empty")
+            : new SwingData(_hand, _parity, _swingType, _resetType, _frames, _notes, _swingEBPM);
     }
 }

@@ -6,8 +6,7 @@ namespace JoshaParity.Utils;
 public class TimeUtils
 {
     /// <summary> Returns the effective BPM of a swing given two points in beats </summary>
-    public static float SwingEBPM(BPMContext bpmContext, float startBeat, float endBeat)
-    { return SwingEBPM(bpmContext.ToRealTime(startBeat), bpmContext.ToRealTime(endBeat)); }
+    public static float SwingEBPM(BPMContext bpmContext, float startBeat, float endBeat) => SwingEBPM(bpmContext.ToRealTime(startBeat), bpmContext.ToRealTime(endBeat));
 
     /// <summary> Returns the effective BPM of a swing given two points in time </summary>
     public static float SwingEBPM(float startTime, float endTime)
@@ -18,6 +17,5 @@ public class TimeUtils
     }
 
     /// <summary> Returns in seconds the real time between 2 points given in beats </summary>
-    public static float BeatsToSeconds(BPMContext bpmContext, float startBeat, float endBeat)
-    { return startBeat == 0 && endBeat == 0 ? 0 : bpmContext.ToRealTime(endBeat) - bpmContext.ToRealTime(startBeat); }
+    public static float BeatsToSeconds(BPMContext bpmContext, float startBeat, float endBeat) => startBeat == 0 && endBeat == 0 ? 0 : bpmContext.ToRealTime(endBeat) - bpmContext.ToRealTime(startBeat);
 }

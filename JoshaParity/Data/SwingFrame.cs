@@ -33,8 +33,7 @@ public static class SwingFrameExtensions
         int frameCount = frames.Count;
         List<SwingFrame> flippedFrames = new(frameCount);
 
-        for (int i = 0; i < frameCount; i++)
-        {
+        for (int i = 0; i < frameCount; i++) {
             SwingFrame originalFrame = frames[i];
             SwingFrame mirrorFrame = frames[frameCount - i - 1];
             SwingFrame flippedFrame = new()

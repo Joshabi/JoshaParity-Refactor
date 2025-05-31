@@ -18,10 +18,10 @@ class Program
         Console.WriteLine("\n\nTime to analyse!\n");
 
         MapAnalysis analysis = MapAnalyser.AnalyseAsync(song).Result;
-        if (analysis is null) { return; };
+        if (analysis is null) { return; }
+        ;
 
-        foreach (DifficultyAnalysis analysisResult in analysis.GetAllAnalyses())
-        {
+        foreach (DifficultyAnalysis analysisResult in analysis.GetAllAnalyses()) {
             Console.WriteLine(analysisResult);
         }
     }

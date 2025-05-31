@@ -1,44 +1,50 @@
-﻿using System.Numerics;
-using JoshaParity.Data;
+﻿using JoshaParity.Data;
 using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
+using System.Numerics;
 
 namespace JoshaParity.Processors;
 
 /// <summary> Container for map entities (Bombs, Walls, Notes) </summary>
 public class MapObjects(List<Note> notes, List<Bomb> bombs, List<Obstacle> walls, List<Arc> arcs, List<Chain> chains)
 {
-    public List<Note> Notes { get; set; } = new List<Note>(notes);
-    public List<Bomb> Bombs { get; } = new List<Bomb>(bombs);
-    public List<Obstacle> Obstacles { get; } = new List<Obstacle>(walls);
-    public List<Arc> Arcs { get; } = new List<Arc>(arcs);
-    public List<Chain> Chains { get; } = new List<Chain>(chains);
+    public List<Note> Notes { get; set; } = [.. notes];
+    public List<Bomb> Bombs { get; } = [.. bombs];
+    public List<Obstacle> Obstacles { get; } = [.. walls];
+    public List<Arc> Arcs { get; } = [.. arcs];
+    public List<Chain> Chains { get; } = [.. chains];
+}
+
+/// <summary> Settings for the analysis </summary>
+/// <remarks> This will be greatly expanded in the future </remarks>
+public class AnalysisSettings
+{
+    public float AngleTolerance { get; set; } = 270.0f;   // The limit on angle change to consider an angle reset
+    public float AngleLimit { get; set; } = 180.0f;       // The limit on how far either way you can rotate
 }
 
 /// <summary> Simulates through mapdata and returns final bot state </summary>
 public class MapProcessor
 {
     /// <summary> Given map objects, simulates and returns the final bot state </summary>
-    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext)
+    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext, AnalysisSettings? config = null)
     {
-        BotState initState = new(null, bpmContext);
+        BotState initState = new(null, bpmContext, config);
         return SimulateMap(initState, mapObjects);
     }
 
-    private static BotState SimulateMap(BotState startState, MapObjects data)
-        => SimulateForward(startState, data, null, null);
+    /// <summary> Simulates through the entire map data and returns the final bot state </summary>
+    private static BotState SimulateMap(BotState startState, MapObjects data) => SimulateForward(startState, data, null, null);
 
     /// <summary> Simulate state forward by X of Y type objects </summary>
-    public static BotState SimulateForwardByType<T>(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null) where T : BeatGridObject
-        => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => o is T);
+    public static BotState SimulateForwardByType<T>(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null) where T : BeatGridObject => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => o is T);
 
     /// <summary> Simulate state forward by X total objects </summary>
-    public static BotState SimulateForwardByTotal(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null)
-        => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => true);
+    public static BotState SimulateForwardByTotal(MapObjects mapObjects, BPMContext bpmContext, int count, BotState? startState = null) => SimulateForward(startState ?? new BotState(null, bpmContext), mapObjects, count, o => true);
 
     /// <summary> Simulates forward an amount of objects and stops when a predicate is met, returning the current bot state. </summary>
     private static BotState SimulateForward(
-        BotState startState, 
+        BotState startState,
         MapObjects data,
         int? maxObjectCount = null,
         Func<BeatGridObject, bool>? predicate = null)
@@ -62,8 +68,7 @@ public class MapProcessor
 
         // Iterate through all objects
         int processed = 0;
-        for (int i = 0; i < mapObjects.Count; i++)
-        {
+        for (int i = 0; i < mapObjects.Count; i++) {
             // Construct the context window
             BeatGridObject obj = mapObjects[i];
             float windowLimit = obj.B + slidingWindowSize;
@@ -84,13 +89,14 @@ public class MapProcessor
                     break;
             }
 
-            if (obj is Note note) {
+            // Swingable (Parity Objects)
+            // TO DO: Method for handling Arcs and their influence
+            if (obj is Note note and not Arc) {
 
                 // Process note in the buffer. If we get a result we can build a swing with the notes
                 Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
                 List<Note>? swingNotes = state.SwingBuffer.Process(note);
-                if (swingNotes is not null && swingNotes.Count != 0)
-                {
+                if (swingNotes is not null && swingNotes.Count != 0) {
                     SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
                     state.AddSwing(swing, hand);
                 }
@@ -99,9 +105,7 @@ public class MapProcessor
                     state.UpdatePose(note.B, leftHand: new Vector2(note.X, note.Y));
                 else
                     state.UpdatePose(note.B, rightHand: new Vector2(note.X, note.Y));
-            }
-            else if (obj is Obstacle obstacle)
-            {
+            } else if (obj is Obstacle obstacle) {
                 state.WallBuffer.Process(obstacle);
                 state.WallBuffer.RemoveExpired(obstacle.B);
                 state.UpdatePose(obstacle.B, obstacle: obstacle);
@@ -109,10 +113,9 @@ public class MapProcessor
         }
 
         // Flush the remaining note buffer
-        foreach (Hand hand in Enum.GetValues(typeof(Hand)))
-        {
+        foreach (Hand hand in Enum.GetValues(typeof(Hand))) {
             List<Note>? swingNotes = state.SwingBuffer.ForceFlush(hand);
-            if (swingNotes is not null && swingNotes.Count != 0) { 
+            if (swingNotes is not null && swingNotes.Count != 0) {
                 SwingData swing = GenerateSwing(state, [.. contextWindow], swingNotes, hand);
                 state.AddSwing(swing, hand);
             }
@@ -140,13 +143,18 @@ public class MapProcessor
         if (lastSwing is null)
             return builder.Build();
 
-        (ResetType resetType, Parity predictedParity) = ParityUtils.AssessParity(state, builder.Build());
+        (ResetType resetType, Parity predictedParity) = ParityUtils.AssessParity(state, builder.Build(), slidingContext);
         float swingEBPM = TimeUtils.SwingEBPM(state.BPMContext, lastSwing.EndFrame.beats, builder.Build().StartFrame.beats) * (lastSwing.IsReset ? 2 : 1);
         builder.WithEBPM(swingEBPM).WithResetType(resetType).WithParity(predictedParity);
         builder.PathSwing(lastSwing);
 
         // Check if any reversal is needed for pure dot swings (We can try every option once multi-pathing is implemented)
         builder.CheckDotReversal(lastSwing);
+
+        // Add an empty swing prior to this swing if its a reset swing
+        if (builder.IsReset)
+            state.AddSwing(SwingUtils.GetInbetweenSwingData(lastSwing, builder.Build()), hand);
+
         return builder.Build();
     }
 }

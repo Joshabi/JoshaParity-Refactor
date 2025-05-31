@@ -1,6 +1,6 @@
-﻿using System.Numerics;
-using JoshaParity.Processors;
+﻿using JoshaParity.Processors;
 using JoshaParser.Data.Beatmap;
+using System.Numerics;
 
 namespace JoshaParity.Data;
 
@@ -30,6 +30,7 @@ public class BotState
     public IReadOnlyList<BotState> Children => _children;
 
     // Recorded data and contextual components
+    public AnalysisSettings Config { get; } = new();
     public List<SwingData> LeftSwings { get; } = [];
     public List<SwingData> RightSwings { get; } = [];
     public List<BotPose> MovementHistory { get; } = [];
@@ -44,12 +45,13 @@ public class BotState
     public Vector2 HeadPosition { get; set; } = new();
 
     /// <summary> Creates a new BotState given previous BotState? and BPM context </summary>
-    public BotState(BotState? parent, BPMContext bpmContext)
+    public BotState(BotState? parent, BPMContext bpmContext, AnalysisSettings? config = null)
     {
         Parent = parent;
         BPMContext = bpmContext;
         parent?._children.Add(this);
 
+        if (config is not null) Config = config;
         if (parent is null) return;
 
         LeftHandPosition = parent.LeftHandPosition;
@@ -85,41 +87,43 @@ public class BotState
         Vector2 newLeft = leftHand ?? LeftHandPosition;
         Vector2 newRight = rightHand ?? RightHandPosition;
 
-        var availableSpaces = WallBuffer.GetAvailableGridSpaces(beatTime);
+        List<(int x, int y)> availableSpaces = WallBuffer.GetAvailableGridSpaces(beatTime);
         int currentX = (int)HeadPosition.X;
         int currentY = (int)HeadPosition.Y;
         int newX = currentX;
         int desiredY = currentY;
 
         // Attempt to return to neutral position if no influence in 2 beats
-        if (beatTime - WallBuffer.LastDodgeInfluence >= 2 && currentX != 1)
+        if (beatTime - WallBuffer.LastDodgeInfluence >= 2 && currentX != 1) {
             if (availableSpaces.Contains((1, currentY)))
                 newX = 1;
-        if (beatTime - WallBuffer.LastDuckInfluence >= 2 && currentY != 1)
+        }
+
+        if (beatTime - WallBuffer.LastDuckInfluence >= 2 && currentY != 1) {
             if (availableSpaces.Contains((newX, 1)))
                 desiredY = 1;
+        }
 
         // If current position is blocked, follow priority of movements
-        if (!availableSpaces.Contains((newX, desiredY)))
-        {
+        if (!availableSpaces.Contains((newX, desiredY))) {
             // Define candidate positions in priority order
-            var candidatePositions = new List<(int x, int y)>
-            {
+            List<(int x, int y)> candidatePositions =
+            [
                 (1, 1), (2, 1), // 1. Center lanes without ducking
                 (1, 0), (2, 0), // 2. Center lanes with ducking
                 (0, 1), (3, 1), // 3. Outer lanes without ducking
                 (0, 0), (3, 0), // 4. Outer lanes with ducking
-            };
+            ];
 
             // Find the first available position based on priority
-            var availablePosition = candidatePositions.FirstOrDefault(pos => availableSpaces.Contains(pos));
+            (int x, int y) availablePosition = candidatePositions.FirstOrDefault(availableSpaces.Contains);
             if (availablePosition != default) {
                 newX = availablePosition.x;
                 desiredY = availablePosition.y;
             } else if (availableSpaces.Count > 0) {
                 // Fallback: pick the closest available space
-                var (x, y) = availableSpaces.OrderBy(pos => Math.Abs(pos.x - newX) + Math.Abs(pos.y - desiredY)).First();
-                newX = x; 
+                (int x, int y) = availableSpaces.OrderBy(pos => Math.Abs(pos.x - newX) + Math.Abs(pos.y - desiredY)).First();
+                newX = x;
                 desiredY = y;
             }
         }
@@ -132,8 +136,7 @@ public class BotState
 
         Vector2 newHead = new(newX, desiredY);
         BotPose newPose = new(beatTime, newLeft, newRight, newHead);
-        if (MovementHistory.Count == 0 || !MovementHistory[MovementHistory.Count - 1].IsSameAs(newPose))
-        {
+        if (MovementHistory.Count == 0 || !MovementHistory[MovementHistory.Count - 1].IsSameAs(newPose)) {
             MovementHistory.Add(newPose);
             LeftHandPosition = newLeft;
             RightHandPosition = newRight;
@@ -146,13 +149,12 @@ public class BotState
     public IEnumerable<SwingData> GetAllSwings(Hand hand)
     {
         Stack<BotState> stack = new();
-        for (var s = this; s != null; s = s.Parent)
+        for (BotState? s = this; s != null; s = s.Parent)
             stack.Push(s);
 
-        foreach (var state in stack)
-        {
-            var swings = hand == Hand.Right ? state.RightSwings : state.LeftSwings;
-            foreach (var swing in swings) yield return swing;
+        foreach (BotState state in stack) {
+            List<SwingData> swings = hand == Hand.Right ? state.RightSwings : state.LeftSwings;
+            foreach (SwingData swing in swings) yield return swing;
         }
     }
 
@@ -160,11 +162,11 @@ public class BotState
     public List<BotPose> GetAllMovementHistory()
     {
         Stack<BotState> stack = new();
-        for (var s = this; s != null; s = s.Parent)
+        for (BotState? s = this; s != null; s = s.Parent)
             stack.Push(s);
 
         List<BotPose> allPoses = [];
-        foreach (var state in stack)
+        foreach (BotState state in stack)
             allPoses.AddRange(state.MovementHistory);
 
         return [.. allPoses.OrderBy(p => p.BeatTime)];
@@ -175,8 +177,7 @@ public class BotState
     {
         IEnumerable<SwingData> leftHandSwings = GetAllSwings(Hand.Left);
         IEnumerable<SwingData> rightHandSwings = GetAllSwings(Hand.Right);
-        List<SwingData> combined = new(leftHandSwings);
-        combined.AddRange(rightHandSwings);
+        List<SwingData> combined = [.. leftHandSwings, .. rightHandSwings];
         return [.. combined.OrderBy(x => x.StartFrame.beats)];
     }
 

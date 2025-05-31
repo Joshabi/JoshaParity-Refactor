@@ -30,7 +30,7 @@ public static class ParityUtils
     public static Dictionary<int, float> BackhandDict(Hand hand) => hand == Hand.Right ? RightBackhandDict : LeftBackhandDict;
 
     /// <summary> Performs an angle parity assessment to determine if reset is probable </summary>
-    public static (ResetType, Parity) AssessParity(BotState state, SwingData nextSwing)
+    public static (ResetType, Parity) AssessParity(BotState state, SwingData nextSwing, List<BeatGridObject>? contextWindow = null)
     {
         SwingData lastSwing = nextSwing.Hand == Hand.Right ?
             state.GetAllSwings(Hand.Right).Last() :
@@ -47,11 +47,22 @@ public static class ParityUtils
         float nextAFN = nextCutDir.ToRotation(lastSwing.Parity == Parity.Forehand ? Parity.Backhand : Parity.Forehand, lastSwing.Hand);
         float AFNChange = lastAFN - nextAFN;
 
+        // TO DO: Implement bomb check logic based on current position and contextWindow
         if (nextSwing.Notes.All(x => x.D == CutDirection.Any))
             return (lastSwing.Parity == Parity.Forehand) ? (ResetType.None, Parity.Backhand) : (ResetType.None, Parity.Forehand);
 
-        return (Math.Abs(AFNChange) > 270)
+        return (Math.Abs(AFNChange) > state.Config.AngleTolerance || Math.Abs(nextAFN) > state.Config.AngleLimit)
             ? (lastSwing.Parity == Parity.Forehand) ? (ResetType.Angle, Parity.Forehand) : (ResetType.Angle, Parity.Backhand)
             : (lastSwing.Parity == Parity.Forehand) ? (ResetType.None, Parity.Backhand) : (ResetType.None, Parity.Forehand);
+    }
+
+    /// <summary> Converts an angle in AFN to a CutDirection based on the given hand and parity </summary>
+    public static CutDirection GetCutDirectionFromAFN(float angleAFN, Hand hand, Parity parity)
+    {
+        Dictionary<int, float> relevantDict = parity == Parity.Forehand ? ForehandDict(hand) : BackhandDict(hand);
+        KeyValuePair<int, float> bestMatch = relevantDict
+            .OrderBy(kvp => Math.Abs(kvp.Value - angleAFN))
+            .First();
+        return (CutDirection)bestMatch.Key;
     }
 }

@@ -1,9 +1,9 @@
 ﻿using JoshaParity.Data;
-using System.Numerics;
-using System.Text;
 using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
 using JoshaParser.Data.Metadata;
+using System.Numerics;
+using System.Text;
 
 namespace JoshaParity.Analyze;
 
@@ -30,13 +30,16 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     public BotState GetBotState() => _state;
 
     /// <summary> Returns swing data for a given hand </summary>
-    public List<SwingData> GetSwingData(HandResult hand) => hand switch
+    public List<SwingData> GetSwingData(HandResult hand)
     {
-        HandResult.Left => _state.GetAllSwings(Hand.Left).ToList(),
-        HandResult.Right => _state.GetAllSwings(Hand.Right).ToList(),
-        HandResult.Both => _state.GetJointSwingData(),
-        _ => []
-    };
+        return hand switch
+        {
+            HandResult.Left => [.. _state.GetAllSwings(Hand.Left)],
+            HandResult.Right => [.. _state.GetAllSwings(Hand.Right)],
+            HandResult.Both => _state.GetJointSwingData(),
+            _ => []
+        };
+    }
 
     /// <summary> Returns movement history for the bot </summary>
     public List<BotPose> GetMovementData() => _state.GetAllMovementHistory();
@@ -44,19 +47,19 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the average NPS across the difficulty </summary>
     public float GetNPS(HandResult hand)
     {
-        var key = (nameof(GetNPS), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetNPS), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
         int handColour = hand == HandResult.Left ? 0 : 1;
         IEnumerable<Note> notes = hand == HandResult.Both ? _diffData.Notes : _diffData.Notes.Where(n => n.C == handColour);
 
         if (!notes.Any()) return 0;
 
-        var firstMs = notes.First().MS;
-        var lastMs = notes.Last().MS;
-        var durationSeconds = (lastMs - firstMs) / 1000f;
+        float firstMs = notes.First().MS;
+        float lastMs = notes.Last().MS;
+        float durationSeconds = (lastMs - firstMs) / 1000f;
 
-        var result = durationSeconds > 0 ? notes.Count() / durationSeconds : 0;
+        float result = durationSeconds > 0 ? notes.Count() / durationSeconds : 0;
 
         _cache[key] = result;
         return result;
@@ -65,28 +68,27 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the total reset counts </summary>
     public int GetResetCount(ResetType type = ResetType.Angle)
     {
-        var jointSwings = GetSwingData(HandResult.Both);
-        if (jointSwings == null || jointSwings.Count <= 1) return 0;
-        return jointSwings.Count(x => x.ResetType == type);
+        List<SwingData> jointSwings = GetSwingData(HandResult.Both);
+        return jointSwings == null || jointSwings.Count <= 1 ? 0 : jointSwings.Count(x => x.ResetType == type);
     }
 
     /// <summary> Gets the average SPS across the difficulty </summary>
     public float GetSPS(HandResult hand = HandResult.Both)
     {
-        var key = (nameof(GetSPS), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetSPS), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
         float CalculateSPS(List<SwingData> swings)
         {
             if (swings == null || swings.Count <= 1) return 0;
-            var firstBeat = swings.First().StartFrame.beats;
-            var lastBeat = swings.Last().EndFrame.beats;
-            var duration = TimeUtils.BeatsToSeconds(_bpmContext, firstBeat, lastBeat);
+            float firstBeat = swings.First().StartFrame.beats;
+            float lastBeat = swings.Last().EndFrame.beats;
+            float duration = TimeUtils.BeatsToSeconds(_bpmContext, firstBeat, lastBeat);
             return duration > 0 ? swings.Count / duration : 0;
         }
 
-        var leftSPS = CalculateSPS(GetSwingData(HandResult.Left));
-        var rightSPS = CalculateSPS(GetSwingData(HandResult.Right));
+        float leftSPS = CalculateSPS(GetSwingData(HandResult.Left));
+        float rightSPS = CalculateSPS(GetSwingData(HandResult.Right));
 
         float result = hand switch
         {
@@ -103,11 +105,11 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the average EBPM across the difficulty </summary>
     public float GetAverageEBPM(HandResult hand = HandResult.Both)
     {
-        var key = (nameof(GetAverageEBPM), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetAverageEBPM), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        var leftHand = GetSwingData(HandResult.Left);
-        var rightHand = GetSwingData(HandResult.Right);
+        List<SwingData> leftHand = GetSwingData(HandResult.Left);
+        List<SwingData> rightHand = GetSwingData(HandResult.Right);
 
         float result = hand switch
         {
@@ -122,17 +124,16 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     }
 
     /// <summary> Gets a vector with the handedness % for both hands </summary>
-    public Vector2 GetHandedness()
-    { return new Vector2(GetHandedness(HandResult.Right), GetHandedness(HandResult.Left)); }
+    public Vector2 GetHandedness() => new(GetHandedness(HandResult.Right), GetHandedness(HandResult.Left));
 
     /// <summary> Gets the percentage of swings on a hand </summary>
     public float GetHandedness(HandResult hand = HandResult.Right)
     {
-        var key = (nameof(GetHandedness), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetHandedness), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        var leftHand = GetSwingData(HandResult.Left);
-        var rightHand = GetSwingData(HandResult.Right);
+        List<SwingData> leftHand = GetSwingData(HandResult.Left);
+        List<SwingData> rightHand = GetSwingData(HandResult.Right);
         int swingCount = leftHand.Count + rightHand.Count;
         if (swingCount == 0) return 0;
 
@@ -150,11 +151,11 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the percentage of a type of swing </summary>
     public float GetSwingTypePercent(SwingType type = SwingType.Normal, HandResult hand = HandResult.Both)
     {
-        var key = (nameof(GetSwingTypePercent) + type.ToString(), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetSwingTypePercent) + type.ToString(), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        var leftHand = GetSwingData(HandResult.Left);
-        var rightHand = GetSwingData(HandResult.Right);
+        List<SwingData> leftHand = GetSwingData(HandResult.Left);
+        List<SwingData> rightHand = GetSwingData(HandResult.Right);
 
         float result = hand switch
         {
@@ -171,11 +172,11 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the percentage of doubles in a difficulty </summary>
     public float GetDoublesPercent()
     {
-        var key = (nameof(GetDoublesPercent), HandResult.Both);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult Both) key = (nameof(GetDoublesPercent), HandResult.Both);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        var leftHand = GetSwingData(HandResult.Left).Where(x => x.Notes.Count > 0);
-        var rightHand = GetSwingData(HandResult.Right).Where(x => x.Notes.Count > 0);
+        IEnumerable<SwingData> leftHand = GetSwingData(HandResult.Left).Where(x => x.Notes.Count > 0);
+        IEnumerable<SwingData> rightHand = GetSwingData(HandResult.Right).Where(x => x.Notes.Count > 0);
 
         const double threshold = 0.05;
         int matchedSwings = leftHand.Count(leftSwing =>
@@ -193,17 +194,17 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the average spacing between notes across a difficulty </summary>
     public float GetAverageSpacing(HandResult hand = HandResult.Right)
     {
-        var key = (nameof(GetAverageSpacing), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetAverageSpacing), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        var handSwings = hand == HandResult.Left ? GetSwingData(HandResult.Left) : GetSwingData(HandResult.Right);
+        List<SwingData> handSwings = hand == HandResult.Left ? GetSwingData(HandResult.Left) : GetSwingData(HandResult.Right);
         if (handSwings == null || handSwings.Count <= 1) return 0;
 
         float result = handSwings.Zip(handSwings.Skip(1), (current, next) =>
         {
             float dX = next.StartFrame.x - current.EndFrame.x;
             float dY = next.StartFrame.y - current.EndFrame.y;
-            return (float)Math.Sqrt(dX * dX + dY * dY);
+            return (float)Math.Sqrt((dX * dX) + (dY * dY));
         }).Average();
 
         _cache[key] = result;
@@ -213,20 +214,20 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
     /// <summary> Gets the average angle change between notes across a difficulty </summary>
     public float GetAverageAngleChange(HandResult hand = HandResult.Right)
     {
-        var key = (nameof(GetAverageAngleChange), hand);
-        if (_cache.TryGetValue(key, out var cached)) return cached;
+        (string, HandResult hand) key = (nameof(GetAverageAngleChange), hand);
+        if (_cache.TryGetValue(key, out float cached)) return cached;
 
-        float CalculateAverageAngle(IEnumerable<SwingData> swings)
+        static float CalculateAverageAngle(IEnumerable<SwingData> swings)
         {
-            var list = swings.ToList();
-            if (list.Count <= 1) return 0;
-
-            return list.Zip(list.Skip(1), (current, next) =>
+            List<SwingData> list = [.. swings];
+            return list.Count <= 1
+                ? 0
+                : list.Zip(list.Skip(1), (current, next) =>
                 Math.Abs(next.StartFrame.dir.ToRotation(next) - current.EndFrame.dir.ToRotation(current))).Average();
         }
 
-        var leftAngle = CalculateAverageAngle(GetSwingData(HandResult.Left));
-        var rightAngle = CalculateAverageAngle(GetSwingData(HandResult.Right));
+        float leftAngle = CalculateAverageAngle(GetSwingData(HandResult.Left));
+        float rightAngle = CalculateAverageAngle(GetSwingData(HandResult.Right));
 
         float result = hand switch
         {
@@ -242,7 +243,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
 
     /// <summary> Clears all cached stat results </summary>
     public void ClearCache() => _cache.Clear();
-     
+
     public override string ToString()
     {
         StringBuilder sb = new();
@@ -268,8 +269,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
         sb.AppendLine($" - Right Hand: {GetHandedness(HandResult.Right):F2}%");
         sb.AppendLine($" - Left Hand: {GetHandedness(HandResult.Left):F2}%");
         sb.AppendLine("Percentage of Swing Types:");
-        foreach (SwingType st in Enum.GetValues(typeof(SwingType)))
-        {
+        foreach (SwingType st in Enum.GetValues(typeof(SwingType))) {
             sb.AppendLine($" - {st}: {GetSwingTypePercent(st):F2}%");
         }
         sb.AppendLine("-----------------------");

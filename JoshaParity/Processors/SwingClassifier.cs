@@ -23,20 +23,15 @@ public static class SwingClassifier
         if (isStack && IsStack(swingNotes))
             return SwingType.Stack;
 
-        if (isStack && IsWindow(swingNotes))
-            return SwingType.Window;
-
-        if (swingNotes.Count >= 5 && swingNotes.All(x => x.D == CutDirection.Any))
-            return SwingType.DotSpam;
-
-        return SwingType.Slider;
+        return isStack && IsWindow(swingNotes)
+            ? SwingType.Window
+            : swingNotes.Count >= 5 && swingNotes.All(x => x.D == CutDirection.Any) ? SwingType.DotSpam : SwingType.Slider;
     }
     /// <summary> Determines if notes compose a stack. </summary>
     private static bool IsStack(List<Note> notes)
     {
         Note lastNote = notes[0];
-        for (int i = 1; i < notes.Count; i++)
-        {
+        for (int i = 1; i < notes.Count; i++) {
             Note nextNote = notes[i];
             if (Math.Abs(nextNote.X - lastNote.X) > 1 || Math.Abs(nextNote.Y - lastNote.Y) > 1)
                 return false;
@@ -47,8 +42,7 @@ public static class SwingClassifier
     private static bool IsWindow(List<Note> notes)
     {
         Note lastNote = notes[0];
-        for (int i = 1; i < notes.Count; i++)
-        {
+        for (int i = 1; i < notes.Count; i++) {
             Note nextNote = notes[i];
             if (Math.Abs(nextNote.X - lastNote.X) > 1 || Math.Abs(nextNote.Y - lastNote.Y) > 1)
                 return true;
