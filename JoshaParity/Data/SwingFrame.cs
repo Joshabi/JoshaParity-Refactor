@@ -6,7 +6,7 @@ namespace JoshaParity.Data;
 /// <summary> Represents a point during a swings motion </summary>
 public class SwingFrame
 {
-    public float beats = 0;
+    public float ms = 0;
     public float x = 0;
     public float y = 0;
     public CutDirection dir = CutDirection.Any;
@@ -18,7 +18,7 @@ public static class SwingFrameExtensions
     /// <summary> Configures the frame based on a given note </summary>
     public static void FromNote(this SwingFrame frame, Note note)
     {
-        frame.beats = note.B;
+        frame.ms = note.MS;
         frame.x = note.X;
         frame.y = note.Y;
         frame.dir = note.D;
@@ -43,7 +43,7 @@ public static class SwingFrameExtensions
                 dir = originalFrame.dir != CutDirection.Any
                     ? SwingUtils.OpposingCutDict[originalFrame.dir]
                     : CutDirection.Any,
-                beats = originalFrame.beats
+                ms = originalFrame.ms
             };
 
             flippedFrames.Add(flippedFrame);

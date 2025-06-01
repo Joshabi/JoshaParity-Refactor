@@ -178,7 +178,7 @@ public class BotState
         IEnumerable<SwingData> leftHandSwings = GetAllSwings(Hand.Left);
         IEnumerable<SwingData> rightHandSwings = GetAllSwings(Hand.Right);
         List<SwingData> combined = [.. leftHandSwings, .. rightHandSwings];
-        return [.. combined.OrderBy(x => x.StartFrame.beats)];
+        return [.. combined.OrderBy(x => x.StartFrame.ms)];
     }
 
     /// <summary> Debug useful information about the bots state </summary>

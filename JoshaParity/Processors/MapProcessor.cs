@@ -127,8 +127,8 @@ public class MapProcessor
     /// <summary> Generates a swing given a list of notes </summary>
     private static SwingData GenerateSwing(BotState state, List<BeatGridObject> slidingContext, List<Note> swingNotes, Hand hand)
     {
-        List<SwingData> leftSwingData = state.GetAllSwings(Hand.Left).ToList();
-        List<SwingData> rightSwingData = state.GetAllSwings(Hand.Right).ToList();
+        List<SwingData> leftSwingData = [.. state.GetAllSwings(Hand.Left)];
+        List<SwingData> rightSwingData = [.. state.GetAllSwings(Hand.Right)];
 
         bool firstSwing = (hand == Hand.Right && rightSwingData.Count == 0) || (hand == Hand.Left && leftSwingData.Count == 0);
         SwingData? lastSwing = firstSwing ? null : (hand == Hand.Right ? rightSwingData.Last() : leftSwingData.Last());
@@ -144,7 +144,7 @@ public class MapProcessor
             return builder.Build();
 
         (ResetType resetType, Parity predictedParity) = ParityUtils.AssessParity(state, builder.Build(), slidingContext);
-        float swingEBPM = TimeUtils.SwingEBPM(state.BPMContext, lastSwing.EndFrame.beats, builder.Build().StartFrame.beats) * (lastSwing.IsReset ? 2 : 1);
+        float swingEBPM = TimeUtils.SwingEBPM(lastSwing.EndFrame.ms / 1000, builder.Build().StartFrame.ms / 1000) * (builder.IsReset ? 2 : 1);
         builder.WithEBPM(swingEBPM).WithResetType(resetType).WithParity(predictedParity);
         builder.PathSwing(lastSwing);
 

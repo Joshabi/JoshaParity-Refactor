@@ -1,6 +1,5 @@
 ﻿using JoshaParity.Analyze.Statistics;
 using JoshaParity.Data;
-using JoshaParity.Utils;
 using JoshaParser.Data.Beatmap;
 using JoshaParser.Data.Metadata;
 using System.Text;
@@ -104,9 +103,7 @@ public class DifficultyAnalysis(DifficultyData diffData, BPMContext bpmContext, 
 
         IEnumerable<SwingData> swings = GetSwingData(hand);
         if (swings == null || swings.Count() <= 1) return 0;
-        float firstBeat = swings.First().StartFrame.beats;
-        float lastBeat = swings.Last().EndFrame.beats;
-        float duration = TimeUtils.BeatsToSeconds(_bpmContext, firstBeat, lastBeat);
+        float duration = swings.Last().EndFrame.ms - swings.First().StartFrame.ms;
         return duration > 0 ? swings.Count() / duration : 0;
     }
 

@@ -64,7 +64,7 @@ public sealed class SwingData(Hand hand, Parity parity, SwingType swingType, Res
     public override string ToString()
     {
         string framesSummary = Frames.Any()
-            ? string.Join(", ", Frames.Select(f => $"({f.beats} beats, Pos: {f.x}x, {f.y}y, CutDirection: {f.dir}, Rot: {f.dir.ToRotation(this)})"))
+            ? string.Join(", ", Frames.Select(f => $"({f.ms} ms, Pos: {f.x}x, {f.y}y, CutDirection: {f.dir}, Rot: {f.dir.ToRotation(this)})"))
             : "No Frames";
 
         string notesSummary = Notes?.Any() == true
@@ -74,7 +74,7 @@ public sealed class SwingData(Hand hand, Parity parity, SwingType swingType, Res
                     : $"(Note - {f.B} beats, {f.MS}ms, Pos: {f.X}x, {f.Y}y, CutDirection: {f.D}, Color: {f.C})"))
             : "No Notes";
 
-        return $"Swing Note/s or Bomb/s at Start Beat: {StartFrame.beats} | Parity: {Parity} | Start Rotation: {StartFrame.dir.ToRotation(this)}\n" +
+        return $"Swing Note/s or Bomb/s at Start MS: {StartFrame.ms} | Parity: {Parity} | Start Rotation: {StartFrame.dir.ToRotation(this)}\n" +
                $"Swing EBPM: {SwingEBPM} | Reset Type: {ResetType} | Swing Type: {SwingType} | Hand: {Hand}\n" +
                $"Frames: {framesSummary} | \nNotes: {notesSummary}";
     }
@@ -176,7 +176,7 @@ public class SwingDataBuilder
                     {
                         x = note.X,
                         y = note.Y,
-                        beats = note.B,
+                        ms = note.MS,
                         dir = dir.NearestDiagonal()
                     });
                 }
@@ -223,7 +223,7 @@ public class SwingDataBuilder
                     {
                         x = chain.TX,
                         y = chain.TY,
-                        beats = chain.TB,
+                        ms = chain.TMS,
                         dir = chain.D
                     });
             }

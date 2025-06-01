@@ -25,12 +25,12 @@ public static class BotStatistics
         for (int i = 1; i < list.Count; i++)
             yield return (new Vector2(list[i].StartFrame.x, list[i].StartFrame.y) - new Vector2(list[i - 1].EndFrame.x, list[i - 1].EndFrame.y)).Length();
     }
-    /// <summary> Gets the time between consecutive swings in beats </summary>
+    /// <summary> Gets the time between consecutive swings in seconds </summary>
     public static IEnumerable<double> TimeBetweenSwings(IEnumerable<SwingData> swings)
     {
         List<SwingData> list = [.. swings];
         for (int i = 1; i < list.Count; i++)
-            yield return list[i].StartFrame.beats - list[i - 1].EndFrame.beats;
+            yield return (list[i].StartFrame.ms - list[i - 1].EndFrame.ms) / 1000;
     }
     /// <summary> Gets the size of each swing in a list of consecutive swings </summary>
     public static IEnumerable<double> SizeOfSwings(IEnumerable<SwingData> swings)
