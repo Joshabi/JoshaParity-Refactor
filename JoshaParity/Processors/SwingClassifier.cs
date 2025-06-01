@@ -20,10 +20,9 @@ public static class SwingClassifier
 
         bool isStack = swingNotes.All(x => Math.Abs(swingNotes[0].B - x.B) < 0.01f);
 
-        if (isStack && IsStack(swingNotes))
-            return SwingType.Stack;
-
-        return isStack && IsWindow(swingNotes)
+        return isStack && IsStack(swingNotes)
+            ? SwingType.Stack
+            : isStack && IsWindow(swingNotes)
             ? SwingType.Window
             : swingNotes.Count >= 5 && swingNotes.All(x => x.D == CutDirection.Any) ? SwingType.DotSpam : SwingType.Slider;
     }
