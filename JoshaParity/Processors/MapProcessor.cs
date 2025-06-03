@@ -144,7 +144,7 @@ public class MapProcessor
             return builder.Build();
 
         (ResetType resetType, Parity predictedParity) = ParityUtils.AssessParity(state, builder.Build(), slidingContext);
-        float swingEBPM = TimeUtils.SwingEBPM(lastSwing.EndFrame.ms / 1000, builder.Build().StartFrame.ms / 1000) * (builder.IsReset ? 2 : 1);
+        float swingEBPM = (float)Math.Round(TimeUtils.SwingEBPM(lastSwing.EndFrame.ms / 1000, builder.Build().StartFrame.ms / 1000) * (builder.IsReset ? 2 : 1), 3);
         builder.WithEBPM(swingEBPM).WithResetType(resetType).WithParity(predictedParity);
         builder.PathSwing(lastSwing);
 
