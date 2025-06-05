@@ -30,7 +30,7 @@ public class BotState
     public IReadOnlyList<BotState> Children => _children;
 
     // Recorded data and contextual components
-    public AnalysisSettings Config { get; } = new();
+    public AnalysisConfig Config { get; } = new();
     public List<SwingData> LeftSwings { get; } = [];
     public List<SwingData> RightSwings { get; } = [];
     public List<BotPose> MovementHistory { get; } = [];
@@ -45,7 +45,7 @@ public class BotState
     public Vector2 HeadPosition { get; set; } = new();
 
     /// <summary> Creates a new BotState given previous BotState? and BPM context </summary>
-    public BotState(BotState? parent, BPMContext bpmContext, AnalysisSettings? config = null)
+    public BotState(BotState? parent, BPMContext bpmContext, AnalysisConfig? config = null)
     {
         Parent = parent;
         BPMContext = bpmContext;

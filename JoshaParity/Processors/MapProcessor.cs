@@ -17,7 +17,7 @@ public class MapObjects(List<Note> notes, List<Bomb> bombs, List<Obstacle> walls
 
 /// <summary> Settings for the analysis </summary>
 /// <remarks> This will be greatly expanded in the future </remarks>
-public class AnalysisSettings
+public class AnalysisConfig
 {
     public float AngleTolerance { get; set; } = 270.0f;   // The limit on angle change to consider an angle reset
     public float AngleLimit { get; set; } = 180.0f;       // The limit on how far either way you can rotate
@@ -27,7 +27,7 @@ public class AnalysisSettings
 public class MapProcessor
 {
     /// <summary> Given map objects, simulates and returns the final bot state </summary>
-    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext, AnalysisSettings? config = null)
+    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext, AnalysisConfig? config = null)
     {
         BotState initState = new(null, bpmContext, config);
         return SimulateMap(initState, mapObjects);
