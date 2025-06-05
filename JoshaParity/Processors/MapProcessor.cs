@@ -17,7 +17,7 @@ public class MapObjects(List<Note> notes, List<Bomb> bombs, List<Obstacle> walls
 
 /// <summary> Settings for the analysis </summary>
 /// <remarks> This will be greatly expanded in the future </remarks>
-public class AnalysisSettings
+public class AnalysisConfig
 {
     public float AngleTolerance { get; set; } = 270.0f;   // The limit on angle change to consider an angle reset
     public float AngleLimit { get; set; } = 180.0f;       // The limit on how far either way you can rotate
@@ -27,7 +27,7 @@ public class AnalysisSettings
 public class MapProcessor
 {
     /// <summary> Given map objects, simulates and returns the final bot state </summary>
-    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext, AnalysisSettings? config = null)
+    public static BotState Run(MapObjects mapObjects, BPMContext bpmContext, AnalysisConfig? config = null)
     {
         BotState initState = new(null, bpmContext, config);
         return SimulateMap(initState, mapObjects);
@@ -127,8 +127,8 @@ public class MapProcessor
     /// <summary> Generates a swing given a list of notes </summary>
     private static SwingData GenerateSwing(BotState state, List<BeatGridObject> slidingContext, List<Note> swingNotes, Hand hand)
     {
-        List<SwingData> leftSwingData = state.GetAllSwings(Hand.Left).ToList();
-        List<SwingData> rightSwingData = state.GetAllSwings(Hand.Right).ToList();
+        List<SwingData> leftSwingData = [.. state.GetAllSwings(Hand.Left)];
+        List<SwingData> rightSwingData = [.. state.GetAllSwings(Hand.Right)];
 
         bool firstSwing = (hand == Hand.Right && rightSwingData.Count == 0) || (hand == Hand.Left && leftSwingData.Count == 0);
         SwingData? lastSwing = firstSwing ? null : (hand == Hand.Right ? rightSwingData.Last() : leftSwingData.Last());
@@ -144,7 +144,7 @@ public class MapProcessor
             return builder.Build();
 
         (ResetType resetType, Parity predictedParity) = ParityUtils.AssessParity(state, builder.Build(), slidingContext);
-        float swingEBPM = TimeUtils.SwingEBPM(state.BPMContext, lastSwing.EndFrame.beats, builder.Build().StartFrame.beats) * (lastSwing.IsReset ? 2 : 1);
+        float swingEBPM = (float)Math.Round(TimeUtils.SwingEBPM(lastSwing.EndFrame.ms / 1000, builder.Build().StartFrame.ms / 1000) * (builder.IsReset ? 2 : 1), 3);
         builder.WithEBPM(swingEBPM).WithResetType(resetType).WithParity(predictedParity);
         builder.PathSwing(lastSwing);
 

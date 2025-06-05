@@ -192,16 +192,19 @@ public static class SwingUtils
         SwingFrame lastFrame = lastSwing.EndFrame;
         SwingFrame nextFrame = nextSwing.StartFrame;
 
-        float startBeat = lastSwing.EndFrame.beats + Math.Min((nextFrame.beats - lastFrame.beats) * 0.3f, 0.5f);
-        float endBeat = startBeat + Math.Min((nextFrame.beats - lastFrame.beats) * 0.2f, 1f);
+        float lastSeconds = lastFrame.ms / 1000f;
+        float nextSeconds = nextFrame.ms / 1000f;
+
+        float startSeconds = lastSeconds + Math.Min((nextSeconds - lastSeconds) * 0.3f, 0.5f);
+        float endSeconds = startSeconds + Math.Min((nextSeconds - lastSeconds) * 0.2f, 1f);
 
         float midX = (lastSwing.EndFrame.x + nextSwing.StartFrame.x) / 2;
         float midY = (lastSwing.EndFrame.y + nextSwing.StartFrame.y) / 2;
 
         Parity inbetweenParity = (nextSwing.Parity == Parity.Forehand) ? Parity.Backhand : Parity.Forehand;
         CutDirection inbetweenDir = OpposingCutDict[lastSwing.EndFrame.dir.MidwayTo(nextSwing.StartFrame.dir, true)];
-        SwingFrame startFrame = new() { beats = startBeat, x = midX, y = midY, dir = inbetweenDir };
-        SwingFrame endFrame = new() { beats = endBeat, x = midX, y = midY, dir = inbetweenDir };
+        SwingFrame startFrame = new() { ms = startSeconds * 1000, x = midX, y = midY, dir = inbetweenDir };
+        SwingFrame endFrame = new() { ms = endSeconds * 1000, x = midX, y = midY, dir = inbetweenDir };
 
         // Create the in-between swing data with flipped parity
         return new SwingData(
