@@ -7,7 +7,12 @@
 
 ---
 
-JoshaParity-Refactor is a C# library designed for analysis and retrieving statistics about Beat Saber maps. It can generate predicted swing data, movement data and provide a wide range of statistics—including NPS/SPS, handedness, resets, and more. It can process V2, V3 and V4 maps and has Lazy Cache functionality to only load and analyse when required.
+JoshaParity is a C# library designed for Beat Saber map anaylsis and statistics retrieval. It can generate predicted swing & movement data, provide a wide range of statistics including NPS, SPS, Swing Type %, Predicted Reset count and more. It can process V2, V3 and V4 maps with lazy loading / caching to so you can run it specific difficulties.
+
+This is an attempt to rewrite the original [JoshaParity](https://github.com/Joshabi/JoshaParity) to be more flexible and specific in purpose (the map parsing has been moved to its own repository though is a submodule to this repository). 
+
+The following features still need to be re-implemented:
+- Bomb Resetting
 
 ---
 
@@ -50,7 +55,7 @@ var config = new MapAnalyserConfig() {
 var analysis = BeatmapAnalyser.CreateFromBeatmap(map, config);
 ```
 
-### 3. Analyzing Difficulties
+### 3. Analysing Difficulties
 
 To get analysis results for a specific difficulty:
 
