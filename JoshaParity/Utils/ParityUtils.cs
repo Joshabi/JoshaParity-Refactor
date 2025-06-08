@@ -47,7 +47,6 @@ public static class ParityUtils
         float nextAFN = nextCutDir.ToRotation(lastSwing.Parity == Parity.Forehand ? Parity.Backhand : Parity.Forehand, lastSwing.Hand);
         float AFNChange = lastAFN - nextAFN;
 
-        // TO DO: Implement bomb check logic based on current position and contextWindow
         if (nextSwing.Notes.All(x => x.D == CutDirection.Any))
             return (lastSwing.Parity == Parity.Forehand) ? (ResetType.None, Parity.Backhand) : (ResetType.None, Parity.Forehand);
 

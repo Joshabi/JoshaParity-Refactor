@@ -4,7 +4,7 @@ using JoshaParser.Data.Beatmap;
 namespace JoshaParity.Processors;
 
 /// <summary> Handles buffering notes and logic for determining when a swing is complete </summary>
-public class SwingBuffer
+public class SwingBuffer(float sliderPrecision = 59f, float maxSliderLength = float.MaxValue)
 {
     private Dictionary<Hand, List<Note>> _buffers = new()
     {
@@ -12,7 +12,8 @@ public class SwingBuffer
         { Hand.Right, new() }
     };
 
-    public const float SliderPrecision = 59f;
+    public float SliderPrecision { get; private set; } = sliderPrecision;
+    public float MaxSliderLength { get; private set; } = maxSliderLength;
 
     public SwingBuffer Clone()
     {
@@ -22,7 +23,9 @@ public class SwingBuffer
             {
                 { Hand.Left, new List<Note>(_buffers[Hand.Left]) },
                 { Hand.Right, new List<Note>(_buffers[Hand.Right]) }
-            }
+            },
+            SliderPrecision = this.SliderPrecision,
+            MaxSliderLength = this.MaxSliderLength
         };
     }
 
@@ -32,7 +35,9 @@ public class SwingBuffer
         Hand hand = note.C == 0 ? Hand.Left : Hand.Right;
         List<Note> buffer = _buffers[hand];
 
-        if (buffer.Count == 0 || IsInGroup(buffer[buffer.Count - 1], note)) {
+        bool isWithinMaxLength = buffer.Count == 0 || Math.Abs(note.MS - buffer.OrderBy(x => x.MS).First().MS) <= MaxSliderLength;
+
+        if (buffer.Count == 0 || isWithinMaxLength && IsInGroup(buffer[buffer.Count - 1], note)) {
             buffer.Add(note);
             return null;
         }
@@ -61,7 +66,9 @@ public class SwingBuffer
         List<Note> buffer = _buffers[hand];
         if (buffer.Count == 0) return null;
 
-        if (!IsInGroup(buffer[buffer.Count - 1], nextNote)) {
+        bool isWithinMaxLength = Math.Abs(nextNote.MS - buffer.OrderBy(x => x.MS).First().MS) <= MaxSliderLength;
+
+        if (!IsInGroup(buffer[buffer.Count - 1], nextNote) || !isWithinMaxLength) {
             List<Note> finalized = [.. buffer];
             buffer.Clear();
             return finalized;
@@ -73,7 +80,7 @@ public class SwingBuffer
     public List<Note> GetBuffer(Hand hand) => _buffers[hand];
 
     /// <summary> Conditions for if this note can be apart of the current swing </summary>
-    private static bool IsInGroup(Note prev, Note next)
+    private bool IsInGroup(Note prev, Note next)
     {
         float prevEndMs = prev is Chain chain ? chain.TMS : prev.MS;
         float delta = next.MS - prevEndMs;

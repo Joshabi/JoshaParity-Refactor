@@ -35,8 +35,9 @@ public class BotState
     public List<SwingData> RightSwings { get; } = [];
     public List<BotPose> MovementHistory { get; } = [];
     public BPMContext BPMContext { get; private set; }
-    internal SwingBuffer SwingBuffer { get; private set; } = new();
+    internal SwingBuffer SwingBuffer { get; private set; }
     internal WallBuffer WallBuffer { get; private set; } = new();
+    internal BombBuffer BombBuffer { get; private set; } = new();
 
     // Contextual data
     public float BeatTime { get; set; } = 0;
@@ -47,11 +48,13 @@ public class BotState
     /// <summary> Creates a new BotState given previous BotState? and BPM context </summary>
     public BotState(BotState? parent, BPMContext bpmContext, AnalysisConfig? config = null)
     {
+        Config = config ?? new AnalysisConfig();
         Parent = parent;
-        BPMContext = bpmContext;
         parent?._children.Add(this);
 
-        if (config is not null) Config = config;
+        BPMContext = bpmContext;
+        SwingBuffer = new(Config.SliderPrecision, Config.MaxSliderLength);
+
         if (parent is null) return;
 
         LeftHandPosition = parent.LeftHandPosition;
@@ -67,6 +70,7 @@ public class BotState
             BeatTime = this.BeatTime,
             SwingBuffer = this.SwingBuffer.Clone(),
             WallBuffer = this.WallBuffer.Clone(),
+            BombBuffer = this.BombBuffer.Clone(),
             LeftHandPosition = this.LeftHandPosition,
             RightHandPosition = this.RightHandPosition,
             HeadPosition = this.HeadPosition
@@ -79,6 +83,12 @@ public class BotState
     {
         if (hand == Hand.Right) RightSwings.Add(swing);
         else LeftSwings.Add(swing);
+    }
+
+    /// <summary> Processes a bomb and updates the bomb buffer </summary>
+    public void ProcessBomb(Bomb bomb)
+    {
+        BombBuffer.Process(bomb);
     }
 
     /// <summary> Updates the bots position and creates a new movement record if appropriate </summary>

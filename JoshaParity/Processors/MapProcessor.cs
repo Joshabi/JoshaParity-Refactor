@@ -19,8 +19,16 @@ public class MapObjects(List<Note> notes, List<Bomb> bombs, List<Obstacle> walls
 /// <remarks> This will be greatly expanded in the future </remarks>
 public class AnalysisConfig
 {
-    public float AngleTolerance { get; set; } = 270.0f;   // The limit on angle change to consider an angle reset
-    public float AngleLimit { get; set; } = 180.0f;       // The limit on how far either way you can rotate
+    /// <summary> Enables experimental features that may not be consistent or stable </summary>
+    public bool Experimental { get; set; } = false;
+    /// <summary> The limit on angle change to consider an angle reset </summary>
+    public float AngleTolerance { get; set; } = 270.0f;
+    /// <summary> The limit on how far either way you can rotate </summary>
+    public float AngleLimit { get; set; } = 180.0f;
+    /// <summary> The precision limit (ms) within which notes might be apart of the same swing </summary>
+    public float SliderPrecision { get; set; } = 59f;
+    /// <summary> The maximum time length (ms) of a multi-note swing </summary>
+    public float MaxSliderLength { get; set; } = float.MaxValue;
 }
 
 /// <summary> Simulates through mapdata and returns final bot state </summary>
@@ -109,6 +117,8 @@ public class MapProcessor
                 state.WallBuffer.Process(obstacle);
                 state.WallBuffer.RemoveExpired(obstacle.B);
                 state.UpdatePose(obstacle.B, obstacle: obstacle);
+            } else if (obj is Bomb bomb) {
+                state.ProcessBomb(bomb);
             }
         }
 
